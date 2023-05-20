@@ -20,30 +20,43 @@
     var CONFIG = {"hostname":"github.com","root":"/ethanwhite-chen/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
   </script>
 
-  <meta name="description" content="不积跬步无以至千里，不积小流无以成江河。分享点滴成长，就有光明未来！">
-<meta property="og:type" content="website">
-<meta property="og:title" content="ykchen的个人博客">
-<meta property="og:url" content="https://github.com/ethanwhite-chen/index.html">
+  <meta name="description" content="​		使用Hexo + Next 搭建个人博客的原因是作为一名后端开发，我需要一个比较私人的地方来记录个人成长和总结工作、学习中遇到的各种知识点，并进行系统的梳理，加强个人的理解深度。需求本身并不复杂，我也不喜欢花里胡哨的页面，且Hexo + Next主题很成熟，遇到问题也能直接上网查询大佬的解决方案。  [TOC] 前置内容前言 hexo是什么，next又是什么     ​		Hexo 是一个快">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Hexo+Next主题搭建个人博客+优化全过程（完整详细版）">
+<meta property="og:url" content="https://github.com/ethanwhite-chen/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/index.html">
 <meta property="og:site_name" content="ykchen的个人博客">
-<meta property="og:description" content="不积跬步无以至千里，不积小流无以成江河。分享点滴成长，就有光明未来！">
+<meta property="og:description" content="​		使用Hexo + Next 搭建个人博客的原因是作为一名后端开发，我需要一个比较私人的地方来记录个人成长和总结工作、学习中遇到的各种知识点，并进行系统的梳理，加强个人的理解深度。需求本身并不复杂，我也不喜欢花里胡哨的页面，且Hexo + Next主题很成熟，遇到问题也能直接上网查询大佬的解决方案。  [TOC] 前置内容前言 hexo是什么，next又是什么     ​		Hexo 是一个快">
 <meta property="og:locale" content="en_US">
+<meta property="og:image" content="c://ykchen/source/_posts/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/v2-a193a47cf70fe6ecf156e5f3d34920ea_b.jpg">
+<meta property="og:image" content="https://github.com/ethanwhite-chen/ethanwhite-chen/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/v2-9125065afd24332d7cd84feb6a350730_720w.jpg">
+<meta property="og:image" content="https://github.com/ethanwhite-chen/ethanwhite-chen/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/v2-b4c7524a2451f4ab42f9c22ea3c7b6be_720w.jpg">
+<meta property="og:image" content="https://github.com/ethanwhite-chen/ethanwhite-chen/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/v2-67a8165154f4c5f4a6333e76e78ed815_b.jpg">
+<meta property="og:image" content="https://github.com/ethanwhite-chen/ethanwhite-chen/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/v2-67a8165154f4c5f4a6333e76e78ed815_720w.jpg">
+<meta property="og:image" content="https://github.com/ethanwhite-chen/ethanwhite-chen/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/v2-1c3baeecf1ef3bec5c8ef3f14639f68b_b.jpg">
+<meta property="og:image" content="https://github.com/ethanwhite-chen/ethanwhite-chen/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/v2-d5d37c8ad523d8ab5c7c200fabc9585e_720w.jpg">
+<meta property="og:image" content="https://github.com/ethanwhite-chen/ethanwhite-chen/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/v2-54f8744afc9746884e6b3acecfc5f8cf_720w.jpg">
+<meta property="og:image" content="https://github.com/ethanwhite-chen/ethanwhite-chen/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/v2-45701cf120ca77e6733ad30b40666f33_b.jpg">
+<meta property="article:published_time" content="2023-05-19T14:34:43.000Z">
+<meta property="article:modified_time" content="2023-05-19T16:37:16.108Z">
 <meta property="article:author" content="EthanWhite-Chen">
+<meta property="article:tag" content="Hexo+Next">
 <meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="c://ykchen/source/_posts/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/v2-a193a47cf70fe6ecf156e5f3d34920ea_b.jpg">
 
-<link rel="canonical" href="https://github.com/ethanwhite-chen/">
+<link rel="canonical" href="https://github.com/ethanwhite-chen/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/">
 
 
 <script id="page-configurations">
   // https://hexo.io/docs/variables.html
   CONFIG.page = {
     sidebar: "",
-    isHome : true,
-    isPost : false,
+    isHome : false,
+    isPost : true,
     lang   : 'en'
   };
 </script>
 
-  <title>ykchen的个人博客</title>
+  <title>Hexo+Next主题搭建个人博客+优化全过程（完整详细版） | ykchen的个人博客</title>
   
 
 
@@ -187,9 +200,10 @@
         <div class="content-wrap">
           
 
-          <div class="content index posts-expand">
+          <div class="content post posts-expand">
             
-      
+
+    
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
@@ -205,10 +219,9 @@
       <meta itemprop="name" content="ykchen的个人博客">
     </span>
       <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/ethanwhite-chen/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/" class="post-title-link" itemprop="url">Hexo+Next主题搭建个人博客+优化全过程（完整详细版）</a>
-        </h2>
+        <h1 class="post-title" itemprop="name headline">
+          Hexo+Next主题搭建个人博客+优化全过程（完整详细版）
+        </h1>
 
         <div class="post-meta">
             <span class="post-meta-item">
@@ -261,7 +274,7 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <p>​		使用Hexo + Next 搭建个人博客的原因是作为一名后端开发，我需要一个比较私人的地方来记录个人成长和总结工作、学习中遇到的各种知识点，并进行系统的梳理，加强个人的理解深度。需求本身并不复杂，我也不喜欢花里胡哨的页面，且Hexo + Next主题很成熟，遇到问题也能直接上网查询大佬的解决方案。</p>
+        <p>​		使用Hexo + Next 搭建个人博客的原因是作为一名后端开发，我需要一个比较私人的地方来记录个人成长和总结工作、学习中遇到的各种知识点，并进行系统的梳理，加强个人的理解深度。需求本身并不复杂，我也不喜欢花里胡哨的页面，且Hexo + Next主题很成熟，遇到问题也能直接上网查询大佬的解决方案。</p>
 <hr>
 <p>[TOC]</p>
 <h2 id="前置内容"><a href="#前置内容" class="headerlink" title="前置内容"></a>前置内容</h2><h3 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h3><ol>
@@ -379,105 +392,53 @@
 <h2 id="结语"><a href="#结语" class="headerlink" title="结语"></a>结语</h2><p>Hexo 是一种纯静态的博客，我们必须要在本地完成文章的编辑再部署到 GitHub 上，依赖于本地环境。不能像 WordPress 或 Typecho 那样的动态博客一样能直接在浏览器中完成撰文和发布。</p>
 <p>可以说是一种比较极客的写博客方式，但是优势也是明显的——免费稳定省心，比较适合爱折腾研究的用户，或者没有在线发文需求的朋友。</p>
 
-      
     </div>
 
     
     
     
+        <div class="reward-container">
+  <div>感谢大佬的打赏，我会继续努力哒！</div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    Donate
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/ethanwhite-chen/images/vx-pay.jpg" alt="EthanWhite-Chen WeChat Pay">
+        <p>WeChat Pay</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/ethanwhite-chen/images/zfb-pay.jpg" alt="EthanWhite-Chen Alipay">
+        <p>Alipay</p>
+      </div>
+
+  </div>
+</div>
+
+
       <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
+          <div class="post-tags">
+              <a href="/ethanwhite-chen/tags/Hexo-Next/" rel="tag"># Hexo+Next</a>
+          </div>
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://github.com/ethanwhite-chen/2023/05/18/hello-world/">
+        
 
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/ethanwhite-chen/images/avatar.gif">
-      <meta itemprop="name" content="EthanWhite-Chen">
-      <meta itemprop="description" content="不积跬步无以至千里，不积小流无以成江河。分享点滴成长，就有光明未来！">
-    </span>
 
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="ykchen的个人博客">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/ethanwhite-chen/2023/05/18/hello-world/" class="post-title-link" itemprop="url">Hello World</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-
-              <time title="Created: 2023-05-18 22:53:56" itemprop="dateCreated datePublished" datetime="2023-05-18T22:53:56+08:00">2023-05-18</time>
-            </span>
-
-          <br>
-            <span class="post-meta-item" title="Symbols count in article">
-              <span class="post-meta-item-icon">
-                <i class="far fa-file-word"></i>
-              </span>
-                <span class="post-meta-item-text">Symbols count in article: </span>
-              <span>367</span>
-            </span>
-            <span class="post-meta-item" title="Reading time">
-              <span class="post-meta-item-icon">
-                <i class="far fa-clock"></i>
-              </span>
-                <span class="post-meta-item-text">Reading time &asymp;</span>
-              <span>1 mins.</span>
-            </span>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>Welcome to <a target="_blank" rel="noopener" href="https://hexo.io/">Hexo</a>! This is your very first post. Check <a target="_blank" rel="noopener" href="https://hexo.io/docs/">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a target="_blank" rel="noopener" href="https://hexo.io/docs/troubleshooting.html">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues">GitHub</a>.</p>
-<h2 id="Quick-Start"><a href="#Quick-Start" class="headerlink" title="Quick Start"></a>Quick Start</h2><h3 id="Create-a-new-post"><a href="#Create-a-new-post" class="headerlink" title="Create a new post"></a>Create a new post</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo new <span class="string">&quot;My New Post&quot;</span></span><br></pre></td></tr></table></figure>
-
-<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/writing.html">Writing</a></p>
-<h3 id="Run-server"><a href="#Run-server" class="headerlink" title="Run server"></a>Run server</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
-
-<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/server.html">Server</a></p>
-<h3 id="Generate-static-files"><a href="#Generate-static-files" class="headerlink" title="Generate static files"></a>Generate static files</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
-
-<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/generating.html">Generating</a></p>
-<h3 id="Deploy-to-remote-sites"><a href="#Deploy-to-remote-sites" class="headerlink" title="Deploy to remote sites"></a>Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
-
-<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/one-command-deployment.html">Deployment</a></p>
-
-      
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/ethanwhite-chen/2023/05/18/hello-world/" rel="prev" title="Hello World">
+      <i class="fa fa-chevron-left"></i> Hello World
+    </a></div>
+      <div class="post-nav-item"></div>
     </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
       </footer>
+    
   </article>
   
   
-  
-
-
   
 
 
@@ -530,6 +491,7 @@
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%89%8D%E7%BD%AE%E5%86%85%E5%AE%B9"><span class="nav-number">1.</span> <span class="nav-text">前置内容</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%89%8D%E8%A8%80"><span class="nav-number">1.1.</span> <span class="nav-text">前言</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BC%98%E7%82%B9%E5%92%8C%E4%B8%8D%E8%B6%B3"><span class="nav-number">1.2.</span> <span class="nav-text">优点和不足</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%8E%AF%E5%A2%83%E5%87%86%E5%A4%87"><span class="nav-number">1.3.</span> <span class="nav-text">环境准备</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#hexo%E5%88%9B%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2"><span class="nav-number">2.</span> <span class="nav-text">hexo创建个人博客</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E8%BF%9E%E6%8E%A5-Github"><span class="nav-number">2.1.</span> <span class="nav-text">连接 Github</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%88%9B%E5%BB%BA-Github-Pages-%E4%BB%93%E5%BA%93"><span class="nav-number">2.2.</span> <span class="nav-text">创建 Github Pages 仓库</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%9C%AC%E5%9C%B0%E5%AE%89%E8%A3%85-Hexo-%E5%8D%9A%E5%AE%A2%E7%A8%8B%E5%BA%8F"><span class="nav-number">2.3.</span> <span class="nav-text">本地安装 Hexo 博客程序</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E9%83%A8%E7%BD%B2-Hexo-%E5%88%B0-GitHub-Pages"><span class="nav-number">2.4.</span> <span class="nav-text">部署 Hexo 到 GitHub Pages</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%BB%91%E5%AE%9A%E5%9F%9F%E5%90%8D%EF%BC%88%E5%8F%AF%E9%80%89%EF%BC%89"><span class="nav-number">2.5.</span> <span class="nav-text">绑定域名（可选）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%BC%80%E5%90%AF-HTTPS"><span class="nav-number">2.6.</span> <span class="nav-text">开启 HTTPS</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%BC%80%E5%A7%8B%E4%BD%BF%E7%94%A8"><span class="nav-number">3.</span> <span class="nav-text">开始使用</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%8F%91%E5%B8%83%E6%96%87%E7%AB%A0"><span class="nav-number">3.1.</span> <span class="nav-text">发布文章</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%BD%91%E7%AB%99%E8%AE%BE%E7%BD%AE"><span class="nav-number">3.2.</span> <span class="nav-text">网站设置</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%9B%B4%E6%8D%A2%E4%B8%BB%E9%A2%98"><span class="nav-number">3.3.</span> <span class="nav-text">更换主题</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%B8%B8%E7%94%A8%E5%91%BD%E4%BB%A4"><span class="nav-number">3.4.</span> <span class="nav-text">常用命令</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98"><span class="nav-number">4.</span> <span class="nav-text">常见问题</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%BB%93%E8%AF%AD"><span class="nav-number">5.</span> <span class="nav-text">结语</span></a></li></ol></div>
       </div>
       <!--/noindex-->
 
