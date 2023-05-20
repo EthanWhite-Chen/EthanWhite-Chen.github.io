@@ -27,21 +27,20 @@
 <meta property="og:site_name" content="ykchen的个人博客">
 <meta property="og:description" content="​		使用Hexo + Next 搭建个人博客的原因是作为一名后端开发，我需要一个比较私人的地方来记录个人成长和总结工作、学习中遇到的各种知识点，并进行系统的梳理，加强个人的理解深度。需求本身并不复杂，我也不喜欢花里胡哨的页面，且Hexo + Next主题很成熟，遇到问题也能直接上网查询大佬的解决方案。  [TOC] 前置内容前言 hexo是什么，next又是什么     ​		Hexo 是一个快">
 <meta property="og:locale" content="en_US">
-<meta property="og:image" content="c://ykchen/source/_posts/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/v2-a193a47cf70fe6ecf156e5f3d34920ea_b.jpg">
-<meta property="og:image" content="https://github.com/ethanwhite-chen/ethanwhite-chen/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/v2-9125065afd24332d7cd84feb6a350730_720w.jpg">
-<meta property="og:image" content="https://github.com/ethanwhite-chen/ethanwhite-chen/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/v2-b4c7524a2451f4ab42f9c22ea3c7b6be_720w.jpg">
-<meta property="og:image" content="https://github.com/ethanwhite-chen/ethanwhite-chen/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/v2-67a8165154f4c5f4a6333e76e78ed815_b.jpg">
-<meta property="og:image" content="https://github.com/ethanwhite-chen/ethanwhite-chen/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/v2-67a8165154f4c5f4a6333e76e78ed815_720w.jpg">
-<meta property="og:image" content="https://github.com/ethanwhite-chen/ethanwhite-chen/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/v2-1c3baeecf1ef3bec5c8ef3f14639f68b_b.jpg">
-<meta property="og:image" content="https://github.com/ethanwhite-chen/ethanwhite-chen/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/v2-d5d37c8ad523d8ab5c7c200fabc9585e_720w.jpg">
-<meta property="og:image" content="https://github.com/ethanwhite-chen/ethanwhite-chen/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/v2-54f8744afc9746884e6b3acecfc5f8cf_720w.jpg">
-<meta property="og:image" content="https://github.com/ethanwhite-chen/ethanwhite-chen/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/v2-45701cf120ca77e6733ad30b40666f33_b.jpg">
+<meta property="og:image" content="https://github.com/ethanwhite-chen/ethanwhite-chen/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/v2-a193a47cf70fe6ecf156e5f3d34920ea_b.jpg">
+<meta property="og:image" content="https://github.com/ethanwhite-chen/ethanwhite-chen/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/v2-9125065afd24332d7cd84feb6a350730_720w.jpg">
+<meta property="og:image" content="https://github.com/ethanwhite-chen/ethanwhite-chen/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/v2-b4c7524a2451f4ab42f9c22ea3c7b6be_720w.jpg">
+<meta property="og:image" content="https://github.com/ethanwhite-chen/ethanwhite-chen/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/v2-67a8165154f4c5f4a6333e76e78ed815_720w.jpg">
+<meta property="og:image" content="https://github.com/ethanwhite-chen/ethanwhite-chen/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/v2-1c3baeecf1ef3bec5c8ef3f14639f68b_b.jpg">
+<meta property="og:image" content="https://github.com/ethanwhite-chen/ethanwhite-chen/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/v2-d5d37c8ad523d8ab5c7c200fabc9585e_720w.jpg">
+<meta property="og:image" content="https://github.com/ethanwhite-chen/ethanwhite-chen/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/v2-54f8744afc9746884e6b3acecfc5f8cf_720w.jpg">
+<meta property="og:image" content="https://github.com/ethanwhite-chen/ethanwhite-chen/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/v2-45701cf120ca77e6733ad30b40666f33_b.jpg">
 <meta property="article:published_time" content="2023-05-19T14:34:43.000Z">
-<meta property="article:modified_time" content="2023-05-19T16:37:16.108Z">
+<meta property="article:modified_time" content="2023-05-20T15:26:12.678Z">
 <meta property="article:author" content="EthanWhite-Chen">
 <meta property="article:tag" content="Hexo+Next">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="c://ykchen/source/_posts/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/v2-a193a47cf70fe6ecf156e5f3d34920ea_b.jpg">
+<meta name="twitter:image" content="https://github.com/ethanwhite-chen/ethanwhite-chen/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/v2-a193a47cf70fe6ecf156e5f3d34920ea_b.jpg">
 
 <link rel="canonical" href="https://github.com/ethanwhite-chen/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/">
 
@@ -237,7 +236,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">Edited on</span>
-                <time title="Modified: 2023-05-20 00:37:16" itemprop="dateModified" datetime="2023-05-20T00:37:16+08:00">2023-05-20</time>
+                <time title="Modified: 2023-05-20 23:26:12" itemprop="dateModified" datetime="2023-05-20T23:26:12+08:00">2023-05-20</time>
               </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -281,7 +280,8 @@
 <li>hexo是什么，next又是什么</li>
 </ol>
 <p>   ​		Hexo 是一个快速、简洁且高效的静态博客框架，它基于 Node.js 运行，可以将我们撰写的 Markdown 文档解析渲染成静态的 HTML 网页。next是Hexo中常用的一个主题，用来扩展Hexo的功能和展示效果。</p>
-<p>   <img src="C://ykchen/source/_posts/Hexo-Next主题搭建个人博客-优化全过程/v2-a193a47cf70fe6ecf156e5f3d34920ea_b.jpg" alt="img"></p>
+   <img src="/ethanwhite-chen/ethanwhite-chen/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/v2-a193a47cf70fe6ecf156e5f3d34920ea_b.jpg" class title="img">
+
 <h3 id="优点和不足"><a href="#优点和不足" class="headerlink" title="优点和不足"></a>优点和不足</h3><p>   <strong>优点：</strong>完全免费；静态站点，轻量快速；可按需求自由定制改造；托管在 GitHub，安全省心；迁移方便……</p>
 <p>   <strong>不足：</strong>发文不便，依赖于本地环境；更适合个人博客使用；GitHub 在国内访问速度有点不快。</p>
 <h3 id="环境准备"><a href="#环境准备" class="headerlink" title="环境准备"></a>环境准备</h3><p>   <strong>git 的下载</strong>： 官网下载较慢，这边推荐阿里镜像下载：</p>
@@ -307,10 +307,11 @@
 <p>   进入 [C:\Users\用户名.ssh] 目录（要勾选显示“隐藏的项目”），用记事本打开公钥 id_rsa.pub 文件并复制里面的内容。</p>
 <p>   登陆 GitHub ，进入 Settings 页面，选择左边栏的 SSH and GPG keys，点击 New SSH key。</p>
 <p>   Title 随便取个名字，粘贴复制的 id_rsa.pub 内容到 Key 中，点击 Add SSH key 完成添加。</p>
-<p>​    <img src="/ethanwhite-chen/ethanwhite-chen/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/v2-9125065afd24332d7cd84feb6a350730_720w.jpg" alt="img"></p>
+<p>​    <img src="/ethanwhite-chen/ethanwhite-chen/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/v2-9125065afd24332d7cd84feb6a350730_720w.jpg" class title="img"></p>
 <p>   <strong>验证连接：</strong></p>
 <p>   打开 Git Bash，输入 <code>ssh -T git@github.com</code> 出现 “Are you sure……”，输入 yes 回车确认。</p>
-<p><img src="/ethanwhite-chen/ethanwhite-chen/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/v2-b4c7524a2451f4ab42f9c22ea3c7b6be_720w.jpg" alt="img"></p>
+<img src="/ethanwhite-chen/ethanwhite-chen/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/v2-b4c7524a2451f4ab42f9c22ea3c7b6be_720w.jpg" class title="img">
+
 <p>   显示 “Hi xxx! You’ve successfully……” 即连接成功。</p>
 <h3 id="创建-Github-Pages-仓库"><a href="#创建-Github-Pages-仓库" class="headerlink" title="创建 Github Pages 仓库"></a>创建 Github Pages 仓库</h3><p>   GitHub 主页右上角加号 -&gt; New repository：</p>
 <ul>
@@ -319,13 +320,14 @@
 <li>Description 选填</li>
 </ul>
 <p>   填好后点击 Create repository 创建。</p>
-<p>   <img src="/ethanwhite-chen/ethanwhite-chen/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/v2-67a8165154f4c5f4a6333e76e78ed815_b.jpg" alt="img"> <img src="/ethanwhite-chen/ethanwhite-chen/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/v2-67a8165154f4c5f4a6333e76e78ed815_720w.jpg" alt="img"></p>
-<p>   创建后默认自动启用 HTTPS，博客地址为：<code>https://用户名.github.io</code></p>
+<p>​    <img src="/ethanwhite-chen/ethanwhite-chen/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/v2-67a8165154f4c5f4a6333e76e78ed815_720w.jpg" class title="img"></p>
+<p>  创建后默认自动启用 HTTPS，博客地址为：<code>https://用户名.github.io</code></p>
 <h3 id="本地安装-Hexo-博客程序"><a href="#本地安装-Hexo-博客程序" class="headerlink" title="本地安装 Hexo 博客程序"></a>本地安装 Hexo 博客程序</h3><p>在创建的本地博客目录中依次执行以下程序</p>
    <figure class="highlight bat"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">npm install -g hexo-cli # 安装对应的hexo客户端</span><br><span class="line">hexo init blog          # 初始化</span><br><span class="line">npm install             # 安装组件</span><br><span class="line">hexo g                  # genarete的简写，生成页面预览</span><br><span class="line">hexo s                  # server的简写，启动服务,可以使用-p <span class="number">8080</span> 指定对应端口</span><br></pre></td></tr></table></figure>
 
 <p><strong>访问</strong> <code>http://localhost:4000</code><strong>，出现 Hexo 默认页面，本地博客安装成功！</strong></p>
-<p><img src="/ethanwhite-chen/ethanwhite-chen/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/v2-1c3baeecf1ef3bec5c8ef3f14639f68b_b.jpg" alt="img"></p>
+<img src="/ethanwhite-chen/ethanwhite-chen/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/v2-1c3baeecf1ef3bec5c8ef3f14639f68b_b.jpg" class title="img">
+
 <p><strong>Tips：</strong>如果出现页面加载不出来，可能是端口被占用了。Ctrl+C 关闭服务器，运行 <code>hexo server -p 5000</code> 更改端口号后重试。</p>
 <p>Hexo 博客文件夹目录结构如下：</p>
 <h3 id="部署-Hexo-到-GitHub-Pages"><a href="#部署-Hexo-到-GitHub-Pages" class="headerlink" title="部署 Hexo 到 GitHub Pages"></a>部署 Hexo 到 GitHub Pages</h3><p>本地博客测试成功后，就是上传到 GitHub 进行部署，使其能够在网络上访问。</p>
@@ -343,7 +345,8 @@
 <li>域名注册和解析教程：<a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/33921436">Namesilo 域名购买及使用教程</a></li>
 </ul>
 <p>按上面教程注册并解析域名，在 DNS 设置部分，删除自带的记录，然后添加 CNAME 记录将 www 域名解析指向 <code>用户名.github.io</code>。</p>
-<p><img src="/ethanwhite-chen/ethanwhite-chen/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/v2-d5d37c8ad523d8ab5c7c200fabc9585e_720w.jpg" alt="img"></p>
+<img src="/ethanwhite-chen/ethanwhite-chen/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/v2-d5d37c8ad523d8ab5c7c200fabc9585e_720w.jpg" class title="img">
+
 <p>绑定域名到 Hexo 博客</p>
 <p>进入本地博客文件夹的 source 目录，打开记事本，里面输入自己的域名，如 <a target="_blank" rel="noopener" href="http://www.example.com,保存名称为/">http://www.example.com，保存名称为</a> “CNAME”，格式为 “所有文件”（无 .txt 后缀）。</p>
 <p>清除缓存等文件并重新发布网站：</p>
@@ -351,7 +354,8 @@
 
 <p>现在就可以使用自己的域名访问 Hexo 博客了。</p>
 <h3 id="开启-HTTPS"><a href="#开启-HTTPS" class="headerlink" title="开启 HTTPS"></a>开启 HTTPS</h3><p>配置自己的域名后，需要我们手动开启 HTTPS。打开博客所在 GitHub 仓库，Settings -&gt; 下拉找到 GitHub Pages -&gt; 勾选 Enforce HTTPS。</p>
-<p><img src="/ethanwhite-chen/ethanwhite-chen/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/v2-54f8744afc9746884e6b3acecfc5f8cf_720w.jpg" alt="img"></p>
+<img src="/ethanwhite-chen/ethanwhite-chen/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/v2-54f8744afc9746884e6b3acecfc5f8cf_720w.jpg" class title="img">
+
 <p>HTTPS 证书部署成功需要一定时间，等大概几分钟再访问域名，就可以看到域名前面的小绿锁了，HTTPS 配置完成！</p>
 <h2 id="开始使用"><a href="#开始使用" class="headerlink" title="开始使用"></a>开始使用</h2><h3 id="发布文章"><a href="#发布文章" class="headerlink" title="发布文章"></a>发布文章</h3><p>进入博客所在目录，右键打开 Git Bash Here，创建博文：</p>
 <figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">hexo new &quot;My New Post&quot;</span><br></pre></td></tr></table></figure>
@@ -375,7 +379,8 @@
 <h2 id="常见问题"><a href="#常见问题" class="headerlink" title="常见问题"></a>常见问题</h2><p><strong>1、Hexo 设置显示文章摘要，首页不显示全文</strong></p>
 <p>Hexo 主页文章列表默认会显示文章全文，浏览时很不方便，可以在文章中插入 <code>&lt;!–more–&gt;</code> 进行分段。</p>
 <p>该代码前面的内容会作为摘要显示，而后面的内容会替换为 “Read More” 隐藏起来。</p>
-<p><img src="/ethanwhite-chen/ethanwhite-chen/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/v2-45701cf120ca77e6733ad30b40666f33_b.jpg" alt="img"> </p>
+<img src="/ethanwhite-chen/ethanwhite-chen/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/2023/05/19/Hexo-Next%E4%B8%BB%E9%A2%98%E6%90%AD%E5%BB%BA%E4%B8%AA%E4%BA%BA%E5%8D%9A%E5%AE%A2-%E4%BC%98%E5%8C%96%E5%85%A8%E8%BF%87%E7%A8%8B/v2-45701cf120ca77e6733ad30b40666f33_b.jpg" class title="img"> 
+
 <p><strong>2、设置网站图标</strong></p>
 <p>进入 themes&#x2F;主题 文件夹，打开 _config.yml 配置文件，找到 favicon 修改，一般格式为：<code>favicon: 图标地址</code>。（不同主题可能略有差别）</p>
 <p><strong>3、修改并部署后没有效果</strong></p>
