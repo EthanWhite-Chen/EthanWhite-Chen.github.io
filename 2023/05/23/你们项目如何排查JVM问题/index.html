@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.3.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ethanwhite-chen.github.io","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="一、对于还在正常运行的系统1、可以使用jmap来查看JVM中各个区域的使用情况。 2、可以通过jstack来查看线程的运行情况，比如哪些线程阻塞、是否出现了死锁。 3、可以通过jstat命令来查看垃圾回收的情况，特别是fullgc比较频繁，那么就得进行调优了。 4、通过各个命令的结果，或者jvisualvm等工具来进行分析。 5、首先，初步猜测频繁fullgc的原因，如果频繁发生fullgc但是又">
+<meta property="og:type" content="article">
+<meta property="og:title" content="你们项目如何排查JVM问题">
+<meta property="og:url" content="https://ethanwhite-chen.github.io/2023/05/23/%E4%BD%A0%E4%BB%AC%E9%A1%B9%E7%9B%AE%E5%A6%82%E4%BD%95%E6%8E%92%E6%9F%A5JVM%E9%97%AE%E9%A2%98/index.html">
+<meta property="og:site_name" content="ykchen的个人博客">
+<meta property="og:description" content="一、对于还在正常运行的系统1、可以使用jmap来查看JVM中各个区域的使用情况。 2、可以通过jstack来查看线程的运行情况，比如哪些线程阻塞、是否出现了死锁。 3、可以通过jstat命令来查看垃圾回收的情况，特别是fullgc比较频繁，那么就得进行调优了。 4、通过各个命令的结果，或者jvisualvm等工具来进行分析。 5、首先，初步猜测频繁fullgc的原因，如果频繁发生fullgc但是又">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://ethanwhite-chen.github.io/2023/05/23/%E4%BD%A0%E4%BB%AC%E9%A1%B9%E7%9B%AE%E5%A6%82%E4%BD%95%E6%8E%92%E6%9F%A5JVM%E9%97%AE%E9%A2%98/05/23/%E4%BD%A0%E4%BB%AC%E9%A1%B9%E7%9B%AE%E5%A6%82%E4%BD%95%E6%8E%92%E6%9F%A5JVM%E9%97%AE%E9%A2%98/v2-f983ea90573f9499a401b09a639a4325_720w.webp">
+<meta property="og:image" content="https://ethanwhite-chen.github.io/2023/05/23/%E4%BD%A0%E4%BB%AC%E9%A1%B9%E7%9B%AE%E5%A6%82%E4%BD%95%E6%8E%92%E6%9F%A5JVM%E9%97%AE%E9%A2%98/05/23/%E4%BD%A0%E4%BB%AC%E9%A1%B9%E7%9B%AE%E5%A6%82%E4%BD%95%E6%8E%92%E6%9F%A5JVM%E9%97%AE%E9%A2%98/v2-dc19b7f178ecd1fb19c51ce8ea96c4da_720w.webp">
+<meta property="article:published_time" content="2023-05-23T09:31:35.000Z">
+<meta property="article:modified_time" content="2023-05-23T10:23:39.765Z">
+<meta property="article:author" content="EthanWhite-Chen">
+<meta property="article:tag" content="java jvm jvm调优">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://ethanwhite-chen.github.io/2023/05/23/%E4%BD%A0%E4%BB%AC%E9%A1%B9%E7%9B%AE%E5%A6%82%E4%BD%95%E6%8E%92%E6%9F%A5JVM%E9%97%AE%E9%A2%98/05/23/%E4%BD%A0%E4%BB%AC%E9%A1%B9%E7%9B%AE%E5%A6%82%E4%BD%95%E6%8E%92%E6%9F%A5JVM%E9%97%AE%E9%A2%98/v2-f983ea90573f9499a401b09a639a4325_720w.webp">
+
+<link rel="canonical" href="https://ethanwhite-chen.github.io/2023/05/23/%E4%BD%A0%E4%BB%AC%E9%A1%B9%E7%9B%AE%E5%A6%82%E4%BD%95%E6%8E%92%E6%9F%A5JVM%E9%97%AE%E9%A2%98/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>你们项目如何排查JVM问题 | ykchen的个人博客</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">ykchen的个人博客</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">欢迎来到ykchen的技术总结分享博客</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>Search
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+  <a href="https://github.com/ethanwhite-chen" class="github-corner" title="Follow me on GitHub" aria-label="Follow me on GitHub" rel="noopener" target="_blank"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://ethanwhite-chen.github.io/2023/05/23/%E4%BD%A0%E4%BB%AC%E9%A1%B9%E7%9B%AE%E5%A6%82%E4%BD%95%E6%8E%92%E6%9F%A5JVM%E9%97%AE%E9%A2%98/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="EthanWhite-Chen">
+      <meta itemprop="description" content="不积跬步无以至千里，不积小流无以成江河。分享点滴成长，就有光明未来！">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="ykchen的个人博客">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          你们项目如何排查JVM问题
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2023-05-23 17:31:35 / Modified: 18:23:39" itemprop="dateCreated datePublished" datetime="2023-05-23T17:31:35+08:00">2023-05-23</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E9%9D%A2%E8%AF%95%E9%A2%98%E7%9B%AE/" itemprop="url" rel="index"><span itemprop="name">面试题目</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="Symbols count in article">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">Symbols count in article: </span>
+              <span>8.5k</span>
+            </span>
+            <span class="post-meta-item" title="Reading time">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">Reading time &asymp;</span>
+              <span>16 mins.</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="一、对于还在正常运行的系统"><a href="#一、对于还在正常运行的系统" class="headerlink" title="一、对于还在正常运行的系统"></a>一、对于还在正常运行的系统</h1><p>1、可以使用jmap来查看JVM中各个区域的使用情况。</p>
+<p>2、可以通过jstack来查看线程的运行情况，比如哪些线程阻塞、是否出现了死锁。</p>
+<p>3、可以通过jstat命令来查看垃圾回收的情况，特别是fullgc比较频繁，那么就得进行调优了。</p>
+<p>4、通过各个命令的结果，或者jvisualvm等工具来进行分析。</p>
+<p>5、首先，初步猜测频繁fullgc的原因，如果频繁发生fullgc但是又一直没有出现内存溢出，那么表示fullgc实际上是回收了很多对象，所以这些对象最好能在younggc过程中直接回收掉，避免这些对象进入到老年代，对于这种情况，就要考虑这些存活时间不长的对象是不是比较大，导致年轻代放不下，直接进入到老年代，尝试加大年轻代的大小，如果改完之后，fullgc减小，则说明修改有效。</p>
+<p>6、同时，还可以找到占用CPU最多的线程，定位到具体的方法，优化这个方法的执行，看是否能避免某些对象的创建，从而节省内存。</p>
+<h1 id="二、对于已经发生了OOM的系统"><a href="#二、对于已经发生了OOM的系统" class="headerlink" title="二、对于已经发生了OOM的系统"></a>二、对于已经发生了OOM的系统</h1><p>1、一般生产系统中都会设置当系统发生了OOM时，生成当时的dump文件（-XX:+HeadDumpOnOutOfMemoryError -XX:HeadDumpPath&#x3D;&#x2F;usr&#x2F;local&#x2F;base）</p>
+<p>2、我们可以利用jsisualvm等工具来分析dump文件</p>
+<p>3、根据dump文件找到异常的实例对象，和异常的线程（占用CPU高），定位到具体的代码</p>
+<p>4、然后再进行详细的分析和调试</p>
+<h1 id="JVM-究竟需不需要调优？"><a href="#JVM-究竟需不需要调优？" class="headerlink" title="JVM 究竟需不需要调优？"></a>JVM 究竟需不需要调优？</h1><p>JVM 经过这么多年的发展和验证，整体是非常健壮的。个人认为99%的情况下，基本用不到 JVM 调优。</p>
+<p>通常来说，我们的 JVM 参数配置大多还是会遵循 JVM 官方的建议，例如：</p>
+<ul>
+<li>-XX:NewRatio&#x3D;2，年轻代:老年代&#x3D;1:2</li>
+<li>-XX:SurvivorRatio&#x3D;8，eden:survivor&#x3D;8:1</li>
+<li>堆内存设置为物理内存的3&#x2F;4左右</li>
+<li>等等</li>
+</ul>
+<p>JVM 参数的默认（推荐）值都是经过 JVM 团队的反复测试和前人的充分验证得出的比较合理的值，因此通常来说是比较靠谱和通用的，一般不会出大问题。</p>
+<p>当然，更重要的是，大部分的应用 QPS 都不到10，数据量不到几万，这种低压环境下，想让 JVM 出问题，说实话也挺难的。</p>
+<img src="/2023/05/23/%E4%BD%A0%E4%BB%AC%E9%A1%B9%E7%9B%AE%E5%A6%82%E4%BD%95%E6%8E%92%E6%9F%A5JVM%E9%97%AE%E9%A2%98/05/23/%E4%BD%A0%E4%BB%AC%E9%A1%B9%E7%9B%AE%E5%A6%82%E4%BD%95%E6%8E%92%E6%9F%A5JVM%E9%97%AE%E9%A2%98/v2-f983ea90573f9499a401b09a639a4325_720w.webp" class title="img">
+
+<p>大部分同学更常遇到的应该是自己的代码 bug 导致 OOM、CPU load高、GC频繁啥的，这些场景也基本都是代码修复即可，通常不需要动 JVM。</p>
+<p>当然，俗话说得好，凡事无绝对，还是有一小部分场景，是可能需要用到 JVM 调优的。具体哪些场景，我们在下面介绍。</p>
+<p>值得一提的是，我们这边所说的 JVM 调优更多的是针对自己的业务场景对 JVM 参数进行优化调整，使其更适合我们的业务，而不是指对 JVM 源码的改动。</p>
+<h1 id="JVM-调优没有什么必要，使用性能更好的垃圾回收器就能解决问题了？"><a href="#JVM-调优没有什么必要，使用性能更好的垃圾回收器就能解决问题了？" class="headerlink" title="JVM 调优没有什么必要，使用性能更好的垃圾回收器就能解决问题了？**"></a>JVM 调优没有什么必要，使用性能更好的垃圾回收器就能解决问题了？**</h1><p>这是我在网上看到的一个说法，因为赞同的人比较多，我估计有不少同学也会有这个想法，因此在这边谈下自己的看法。</p>
+<p><strong>1）实战角度</strong></p>
+<p>不考虑应付面试的因素，升级垃圾回收器确实会是最有效的方式之一，例如：CMS 升级到 G1，甚至 ZGC。</p>
+<p>这个很容易理解，更高版本的垃圾回收器相当于是 JVM 开发人员对 JVM 做的优化，人家毕竟是专门做这个的，所以通常来说升级高版本的性能会有不少的提升。</p>
+<p>G1 目前已经有开始在逐渐应用开来，周围有不少团队在 JDK8 中使用了 G1，就我了解到的，还是存在不少问题的，不少同学在不断进行参数的调整，而在 JDK11 中能优化成啥样还有待验证。</p>
+<p>ZGC 目前应用的还比较少，仅从对外公布的数据来看很好看，最大暂停时间不超过10ms，甚至是1ms，大家都抱有很高的期望。但是从目前我收集到的一些资料来看，ZGC 也并不是银弹，已知的明显问题有：</p>
+<ul>
+<li>吞吐量相较于 G1 会有所下降，官方称最大不超过15%</li>
+<li>ZGC如果遇到非常高的对象分配速率（allocation rate）的话会跟不上，目前唯一有效的“调优”方式就是增大整个GC堆的大小来让ZGC有更大的喘息空间——R大与ZGC领队沟通后的原话</li>
+</ul>
+<p>而且，随着后续 ZGC 应用开来，后续一定会不断出现更多问题的。</p>
+<p>整体而言，个人觉得 JVM 调优在某些场景下还是有必要的，毕竟有句话叫：没有最好的，只有最合适的。</p>
+<p><strong>2）面试角度</strong></p>
+<p>如果你回答直接升级垃圾收集器，面试官可能也赞同，但是这个话题可能就这样结束了，面试官大概率没听到他想要的回答，你在这题的肯定拿不到加分，甚至可能会被扣分。</p>
+<p>所以，在面试的时候，你可以回答升级垃圾收集器，但是你不能只回答升级垃圾收集器。</p>
+<h1 id="JVM-何时优化？"><a href="#JVM-何时优化？" class="headerlink" title="JVM 何时优化？"></a>JVM 何时优化？</h1><p>忌过早优化。《计算机程序设计艺术》的作者高德纳（Donald Ervin Knuth）曾说过一句经典的话：</p>
+<blockquote>
+<p>The real problem is that programmers have spent far too much time worrying about efficiency in the wrong places and at the wrong times; premature optimization is the root of all evil (or at least most of it) in programming.<br>真正的问题是，程序猿在错误的地方和错误的时间花了太多的时间担心效率问题；过早的优化是编程中所有（或者至少是大部分）罪恶的根源。</p>
+</blockquote>
+<p>忌过早并不是说就完全不管，比较正确的做法应该是给核心服务的一些重要 JVM 指标配上监控告警，当指标出现波动或者异常时，能及时介入排查。</p>
+<p><strong>面试官：JVM 有哪些核心指标？合理范围应该是多少？</strong></p>
+<p>这个问题没有统一的答案，因为每个服务对AVG&#x2F;TP999&#x2F;TP9999等性能指标的要求是不同的，因此合理的范围也不同。</p>
+<p>为了防止面试官追问，对于普通的 Java 后端应用来说，我这边给出一份相对合理的范围值。以下指标都是对于单台服务器来说：</p>
+<ul>
+<li>jvm.gc.time：每分钟的GC耗时在1s以内，500ms以内尤佳</li>
+<li>jvm.gc.meantime：每次YGC耗时在100ms以内，50ms以内尤佳</li>
+<li>jvm.fullgc.count：FGC最多几小时1次，1天不到1次尤佳</li>
+<li>jvm.fullgc.time：每次FGC耗时在1s以内，500ms以内尤佳</li>
+</ul>
+<p>通常来说，只要这几个指标正常，其他的一般不会有问题，如果其他地方出了问题，一般都会影响到这几个指标。</p>
+<h1 id="JVM-优化步骤？"><a href="#JVM-优化步骤？" class="headerlink" title="JVM 优化步骤？"></a>JVM 优化步骤？</h1><p><strong>4.1、分析和定位当前系统的瓶颈</strong></p>
+<p>对于JVM的核心指标，我们的关注点和常用工具如下：</p>
+<p><strong>1）CPU指标</strong></p>
+<ul>
+<li>查看占用CPU最多的进程</li>
+<li>查看占用CPU最多的线程</li>
+<li>查看线程堆栈快照信息</li>
+<li>分析代码执行热点</li>
+<li>查看哪个代码占用CPU执行时间最长</li>
+<li>查看每个方法占用CPU时间比例</li>
+</ul>
+<p>常见的命令：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">// 显示系统各个进程的资源使用情况</span><br><span class="line">top</span><br><span class="line">// 查看某个进程中的线程占用情况</span><br><span class="line">top -Hp pid</span><br><span class="line">// 查看当前 Java 进程的线程堆栈信息</span><br><span class="line">jstack pid</span><br></pre></td></tr></table></figure>
+
+<p>常见的工具：JProfiler、JVM Profiler、Arthas等。</p>
+<p><strong>2）JVM 内存指标</strong></p>
+<ul>
+<li>查看当前 JVM 堆内存参数配置是否合理</li>
+<li>查看堆中对象的统计信息</li>
+<li>查看堆存储快照，分析内存的占用情况</li>
+<li>查看堆各区域的内存增长是否正常</li>
+<li>查看是哪个区域导致的GC</li>
+<li>查看GC后能否正常回收到内存</li>
+</ul>
+<p>常见的命令：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">// 查看当前的 JVM 参数配置</span><br><span class="line">ps -ef | grep java</span><br><span class="line">// 查看 Java 进程的配置信息，包括系统属性和JVM命令行标志</span><br><span class="line">jinfo pid</span><br><span class="line">// 输出 Java 进程当前的 gc 情况</span><br><span class="line">jstat -gc pid</span><br><span class="line">// 输出 Java 堆详细信息</span><br><span class="line">jmap -heap pid</span><br><span class="line">// 显示堆中对象的统计信息</span><br><span class="line">jmap -histo:live pid</span><br><span class="line">// 生成 Java 堆存储快照dump文件</span><br><span class="line">jmap -F -dump:format=b,file=dumpFile.phrof pid</span><br></pre></td></tr></table></figure>
+
+<p>常见的工具：Eclipse MAT、JConsole等。</p>
+<p><strong>3）JVM GC指标</strong></p>
+<ul>
+<li>查看每分钟GC时间是否正常</li>
+<li>查看每分钟YGC次数是否正常</li>
+<li>查看FGC次数是否正常</li>
+<li>查看单次FGC时间是否正常</li>
+<li>查看单次GC各阶段详细耗时，找到耗时严重的阶段</li>
+<li>查看对象的动态晋升年龄是否正常</li>
+</ul>
+<p>JVM 的 GC指标一般是从 GC 日志里面查看，默认的 GC 日志可能比较少，我们可以添加以下参数，来丰富我们的GC日志输出，方便我们定位问题。</p>
+<p>GC日志常用 JVM 参数：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">// 打印GC的详细信息</span><br><span class="line">-XX:+PrintGCDetails</span><br><span class="line">// 打印GC的时间戳</span><br><span class="line">-XX:+PrintGCDateStamps</span><br><span class="line">// 在GC前后打印堆信息</span><br><span class="line">-XX:+PrintHeapAtGC</span><br><span class="line">// 打印Survivor区中各个年龄段的对象的分布信息</span><br><span class="line">-XX:+PrintTenuringDistribution</span><br><span class="line">// JVM启动时输出所有参数值，方便查看参数是否被覆盖</span><br><span class="line">-XX:+PrintFlagsFinal</span><br><span class="line">// 打印GC时应用程序的停止时间</span><br><span class="line">-XX:+PrintGCApplicationStoppedTime</span><br><span class="line">// 打印在GC期间处理引用对象的时间（仅在PrintGCDetails时启用）</span><br><span class="line">-XX:+PrintReferenceGC</span><br></pre></td></tr></table></figure>
+
+<p>以上就是我们定位系统瓶颈的常用手段，大部分问题通过以上方式都能定位出问题原因，然后结合代码去找到问题根源。</p>
+<p><strong>4.2、确定优化目标</strong></p>
+<p>定位出系统瓶颈后，在优化前先制定好优化的目标是什么，例如：</p>
+<ul>
+<li>将FGC次数从每小时1次，降低到1天1次</li>
+<li>将每分钟的GC耗时从3s降低到500ms</li>
+<li>将每次FGC耗时从5s降低到1s以内</li>
+<li>…</li>
+</ul>
+<p><strong>4.3、制订优化方案</strong></p>
+<p>针对定位出的系统瓶颈制定相应的优化方案，常见的有：</p>
+<ul>
+<li>代码bug：升级修复bug。典型的有：死循环、使用无界队列。</li>
+<li>不合理的JVM参数配置：优化 JVM 参数配置。典型的有：年轻代内存配置过小、堆内存配置过小、元空间配置过小。</li>
+</ul>
+<p><strong>4.4、对比优化前后的指标，统计优化效果</strong></p>
+<p><strong>4.5、持续观察和跟踪优化效果</strong></p>
+<p><strong>4.6、如果还需要的话，重复以上步骤</strong></p>
+<h1 id="调优案例：metaspace导致频繁FGC问题"><a href="#调优案例：metaspace导致频繁FGC问题" class="headerlink" title="调优案例：metaspace导致频繁FGC问题"></a>调优案例：metaspace导致频繁FGC问题</h1><p>以下案例来源于网络或本人真实经验，皆能自圆其说，理解掌握后同学们皆可拿来与面试官对线。</p>
+<p><strong>服务环境：</strong>ParNew + CMS + JDK8</p>
+<p><strong>问题现象</strong>：服务频繁出现FGC</p>
+<p><strong>原因分析</strong>：</p>
+<p>1）首先查看GC日志，发现出现FGC的原因是metaspace空间不够</p>
+<p>对应GC日志：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Full GC (Metadata GC Threshold)</span><br></pre></td></tr></table></figure>
+
+<p>2）进一步查看日志发现元空间存在内存碎片化现象</p>
+<p>对应GC日志：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Metaspace       used 35337K, capacity 56242K, committed 56320K, reserved 1099776K</span><br></pre></td></tr></table></figure>
+
+<p>这边简单解释下这几个参数的意义</p>
+<ul>
+<li>used ：已使用的空间大小</li>
+<li>capacity：当前已经分配且未释放的空间容量大小</li>
+<li>committed：当前已经分配的空间大小</li>
+<li>reserved：预留的空间大小</li>
+</ul>
+<p>这边 used 比较容易理解，reserved 在本例不重要可以先忽略，主要是 capacity 和 committed 这2个容易搞混。</p>
+<p>结合下图来看更容易理解，元空间的分配以 chunk 为单位，当一个 ClassLoader 被垃圾回收时，所有属于它的空间（chunk）被释放，此时该 chunk 称为 Free Chunk，而 committed chunk 就是 capacity chunk 和 free chunk 之和。</p>
+<img src="/2023/05/23/%E4%BD%A0%E4%BB%AC%E9%A1%B9%E7%9B%AE%E5%A6%82%E4%BD%95%E6%8E%92%E6%9F%A5JVM%E9%97%AE%E9%A2%98/05/23/%E4%BD%A0%E4%BB%AC%E9%A1%B9%E7%9B%AE%E5%A6%82%E4%BD%95%E6%8E%92%E6%9F%A5JVM%E9%97%AE%E9%A2%98/v2-dc19b7f178ecd1fb19c51ce8ea96c4da_720w.webp" class title="img">
+
+<p>之所以说内存存在碎片化现象就是根据 used 和 capacity 的数据得来的，上面说了元空间的分配以 chunk 为单位，即使一个 ClassLoader 只加载1个类，也会独占整个 chunk，所以当出现 used 和 capacity 两者之差较大的时候，说明此时存在内存碎片化的情况。</p>
+<p>GC日志demo如下：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line">&#123;Heap before GC invocations=<span class="number">0</span> (full <span class="number">0</span>):</span><br><span class="line"> par <span class="keyword">new</span> generation   total <span class="number">314560</span>K, used <span class="number">141123</span>K [<span class="number">0x00000000c0000000</span>, <span class="number">0x00000000d5550000</span>, <span class="number">0x00000000d5550000</span>)</span><br><span class="line">  eden space <span class="number">279616</span>K,  <span class="number">50</span>% used [<span class="number">0x00000000c0000000</span>, <span class="number">0x00000000c89d0d00</span>, <span class="number">0x00000000d1110000</span>)</span><br><span class="line">  from space <span class="number">34944</span>K,   <span class="number">0</span>% used [<span class="number">0x00000000d1110000</span>, <span class="number">0x00000000d1110000</span>, <span class="number">0x00000000d3330000</span>)</span><br><span class="line">  to   space <span class="number">34944</span>K,   <span class="number">0</span>% used [<span class="number">0x00000000d3330000</span>, <span class="number">0x00000000d3330000</span>, <span class="number">0x00000000d5550000</span>)</span><br><span class="line"> concurrent mark-sweep generation total <span class="number">699072</span>K, used <span class="number">0</span>K [<span class="number">0x00000000d5550000</span>, <span class="number">0x0000000100000000</span>, <span class="number">0x0000000100000000</span>)</span><br><span class="line"> Metaspace       used <span class="number">35337</span>K, capacity <span class="number">56242</span>K, committed <span class="number">56320</span>K, reserved <span class="number">1099776</span>K</span><br><span class="line">  <span class="keyword">class</span> space    used <span class="number">4734</span>K, capacity <span class="number">8172</span>K, committed <span class="number">8172</span>K, reserved <span class="number">1048576</span>K</span><br><span class="line"><span class="number">1.448</span>: [Full <span class="built_in">GC</span> (Metadata GC Threshold) <span class="number">1.448</span>: [CMS: <span class="number">0</span>K-&gt;<span class="number">10221</span>K(<span class="number">699072</span>K), <span class="number">0.0487207</span> secs] <span class="number">141123</span>K-&gt;<span class="number">10221</span>K(<span class="number">1013632</span>K), [Metaspace: <span class="number">35337</span>K-&gt;<span class="number">35337</span>K(<span class="number">1099776</span>K)], <span class="number">0.0488547</span> secs] [Times: user=<span class="number">0.09</span> sys=<span class="number">0.00</span>, real=<span class="number">0.05</span> secs] </span><br><span class="line">Heap after GC invocations=<span class="number">1</span> (full <span class="number">1</span>):</span><br><span class="line"> par <span class="keyword">new</span> generation   total <span class="number">314560</span>K, used <span class="number">0</span>K [<span class="number">0x00000000c0000000</span>, <span class="number">0x00000000d5550000</span>, <span class="number">0x00000000d5550000</span>)</span><br><span class="line">  eden space <span class="number">279616</span>K,   <span class="number">0</span>% used [<span class="number">0x00000000c0000000</span>, <span class="number">0x00000000c0000000</span>, <span class="number">0x00000000d1110000</span>)</span><br><span class="line">  from space <span class="number">34944</span>K,   <span class="number">0</span>% used [<span class="number">0x00000000d1110000</span>, <span class="number">0x00000000d1110000</span>, <span class="number">0x00000000d3330000</span>)</span><br><span class="line">  to   space <span class="number">34944</span>K,   <span class="number">0</span>% used [<span class="number">0x00000000d3330000</span>, <span class="number">0x00000000d3330000</span>, <span class="number">0x00000000d5550000</span>)</span><br><span class="line"> concurrent mark-sweep generation total <span class="number">699072</span>K, used <span class="number">10221</span>K [<span class="number">0x00000000d5550000</span>, <span class="number">0x0000000100000000</span>, <span class="number">0x0000000100000000</span>)</span><br><span class="line"> Metaspace       used <span class="number">35337</span>K, capacity <span class="number">56242</span>K, committed <span class="number">56320</span>K, reserved <span class="number">1099776</span>K</span><br><span class="line">  <span class="keyword">class</span> space    used <span class="number">4734</span>K, capacity <span class="number">8172</span>K, committed <span class="number">8172</span>K, reserved <span class="number">1048576</span>K</span><br><span class="line">&#125;</span><br><span class="line">&#123;Heap before GC invocations=<span class="number">1</span> (full <span class="number">1</span>):</span><br><span class="line"> par <span class="keyword">new</span> generation   total <span class="number">314560</span>K, used <span class="number">0</span>K [<span class="number">0x00000000c0000000</span>, <span class="number">0x00000000d5550000</span>, <span class="number">0x00000000d5550000</span>)</span><br><span class="line">  eden space <span class="number">279616</span>K,   <span class="number">0</span>% used [<span class="number">0x00000000c0000000</span>, <span class="number">0x00000000c0000000</span>, <span class="number">0x00000000d1110000</span>)</span><br><span class="line">  from space <span class="number">34944</span>K,   <span class="number">0</span>% used [<span class="number">0x00000000d1110000</span>, <span class="number">0x00000000d1110000</span>, <span class="number">0x00000000d3330000</span>)</span><br><span class="line">  to   space <span class="number">34944</span>K,   <span class="number">0</span>% used [<span class="number">0x00000000d3330000</span>, <span class="number">0x00000000d3330000</span>, <span class="number">0x00000000d5550000</span>)</span><br><span class="line"> concurrent mark-sweep generation total <span class="number">699072</span>K, used <span class="number">10221</span>K [<span class="number">0x00000000d5550000</span>, <span class="number">0x0000000100000000</span>, <span class="number">0x0000000100000000</span>)</span><br><span class="line"> Metaspace       used <span class="number">35337</span>K, capacity <span class="number">56242</span>K, committed <span class="number">56320</span>K, reserved <span class="number">1099776</span>K</span><br><span class="line">  <span class="keyword">class</span> space    used <span class="number">4734</span>K, capacity <span class="number">8172</span>K, committed <span class="number">8172</span>K, reserved <span class="number">1048576</span>K</span><br><span class="line"><span class="number">1.497</span>: [Full <span class="built_in">GC</span> (Last ditch collection) <span class="number">1.497</span>: [CMS: <span class="number">10221</span>K-&gt;<span class="number">3565</span>K(<span class="number">699072</span>K), <span class="number">0.0139783</span> secs] <span class="number">10221</span>K-&gt;<span class="number">3565</span>K(<span class="number">1013632</span>K), [Metaspace: <span class="number">35337</span>K-&gt;<span class="number">35337</span>K(<span class="number">1099776</span>K)], <span class="number">0.0193983</span> secs] [Times: user=<span class="number">0.03</span> sys=<span class="number">0.00</span>, real=<span class="number">0.02</span> secs] </span><br><span class="line">Heap after GC invocations=<span class="number">2</span> (full <span class="number">2</span>):</span><br><span class="line"> par <span class="keyword">new</span> generation   total <span class="number">314560</span>K, used <span class="number">0</span>K [<span class="number">0x00000000c0000000</span>, <span class="number">0x00000000d5550000</span>, <span class="number">0x00000000d5550000</span>)</span><br><span class="line">  eden space <span class="number">279616</span>K,   <span class="number">0</span>% used [<span class="number">0x00000000c0000000</span>, <span class="number">0x00000000c0000000</span>, <span class="number">0x00000000d1110000</span>)</span><br><span class="line">  from space <span class="number">34944</span>K,   <span class="number">0</span>% used [<span class="number">0x00000000d1110000</span>, <span class="number">0x00000000d1110000</span>, <span class="number">0x00000000d3330000</span>)</span><br><span class="line">  to   space <span class="number">34944</span>K,   <span class="number">0</span>% used [<span class="number">0x00000000d3330000</span>, <span class="number">0x00000000d3330000</span>, <span class="number">0x00000000d5550000</span>)</span><br><span class="line"> concurrent mark-sweep generation total <span class="number">699072</span>K, used <span class="number">3565</span>K [<span class="number">0x00000000d5550000</span>, <span class="number">0x0000000100000000</span>, <span class="number">0x0000000100000000</span>)</span><br><span class="line"> Metaspace       used <span class="number">17065</span>K, capacity <span class="number">22618</span>K, committed <span class="number">35840</span>K, reserved <span class="number">1079296</span>K</span><br><span class="line">  <span class="keyword">class</span> space    used <span class="number">1624</span>K, capacity <span class="number">2552</span>K, committed <span class="number">8172</span>K, reserved <span class="number">1048576</span>K</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>元空间主要适用于存放类的相关信息，而存在内存碎片化说明很可能创建了较多的类加载器，同时使用率较低。</p>
+<p>因此，当元空间出现内存碎片化时，我们会着重关注是不是创建了大量的类加载器。</p>
+<p>3）通过 dump 堆存储文件发现存在大量 DelegatingClassLoader</p>
+<p>通过进一步分析，发现是由于反射导致创建大量 DelegatingClassLoader。其核心原理如下：</p>
+<p>在 JVM 上，最初是通过 JNI 调用来实现方法的反射调用，当 JVM 注意到通过反射经常访问某个方法时，它将生成字节码来执行相同的操作，称为膨胀（inflation）机制。如果使用字节码的方式，则会为该方法生成一个 DelegatingClassLoader，如果存在大量方法经常反射调用，则会导致创建大量 DelegatingClassLoader。</p>
+<p><strong>反射调用频次达到多少才会从 JNI 转字节码？</strong></p>
+<p>默认是15次，可通过参数 -Dsun.reflect.inflationThreshold 进行控制，在小于该次数时会使用 JNI 的方式对方法进行调用，如果调用次数超过该次数就会使用字节码的方式生成方法调用。</p>
+<p><strong>分析结论</strong>：反射调用导致创建大量 DelegatingClassLoader，占用了较大的元空间内存，同时存在内存碎片化现象，导致元空间利用率不高，从而较快达到阈值，触发 FGC。</p>
+<p><strong>优化策略：</strong></p>
+<p>1）适当调大 metaspace 的空间大小。</p>
+<p>2）优化不合理的反射调用。例如最常见的属性拷贝工具类 BeanUtils.copyProperties 可以使用 mapstruct 替换。</p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>当被面试官问到 JVM 调优时，完全可以按照本文的脉络回答：</p>
+<ul>
+<li>首先表态如果使用合理的 JVM 参数配置，在大多数情况应该是不需要调优的——对应本文第1题</li>
+<li>其次说明可能还是存在少量场景需要调优，我们可以对一些 JVM 核心指标配置监控告警，当出现波动时人为介入分析评估——对应本文第3题</li>
+<li>最后举一个实际的调优例子来加以说明——对应本文第5题</li>
+</ul>
+<p>如果面试官反问怎么分析排查的，则可以使用本文第4题的常用命令和工具来与之对线。</p>
+<p>这一套流程下来，我相信大部分面试官都会对你印象不错。</p>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div>感谢大佬的打赏，我会继续努力哒！</div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    Donate
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/vx-pay.jpg" alt="EthanWhite-Chen WeChat Pay">
+        <p>WeChat Pay</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/zfb-pay.jpg" alt="EthanWhite-Chen Alipay">
+        <p>Alipay</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/java-jvm-jvm%E8%B0%83%E4%BC%98/" rel="tag"># java jvm jvm调优</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2023/05/23/%E5%85%B3%E4%BA%8E%E6%AD%BB%E9%94%81%E4%BB%A5%E5%8F%8A%E5%A6%82%E4%BD%95%E6%9F%A5%E7%9C%8B%E7%BA%BF%E7%A8%8B%E6%98%AF%E5%90%A6%E6%9C%89%E6%AD%BB%E9%94%81/" rel="prev" title="关于死锁以及如何查看线程是否有死锁">
+      <i class="fa fa-chevron-left"></i> 关于死锁以及如何查看线程是否有死锁
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2023/05/23/%E8%AF%B4%E2%BC%80%E4%B8%8BJVM%E4%B8%AD%EF%BC%8C%E5%93%AA%E4%BA%9B%E6%98%AF%E5%85%B1%E4%BA%AB%E5%8C%BA%EF%BC%8C%E5%93%AA%E4%BA%9B%E5%8F%AF%E4%BB%A5%E4%BD%9C%E4%B8%BAgc-root/" rel="next" title="说⼀下JVM中，哪些是共享区，哪些可以作为gc root">
+      说⼀下JVM中，哪些是共享区，哪些可以作为gc root <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E4%B8%80%E3%80%81%E5%AF%B9%E4%BA%8E%E8%BF%98%E5%9C%A8%E6%AD%A3%E5%B8%B8%E8%BF%90%E8%A1%8C%E7%9A%84%E7%B3%BB%E7%BB%9F"><span class="nav-number">1.</span> <span class="nav-text">一、对于还在正常运行的系统</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E4%BA%8C%E3%80%81%E5%AF%B9%E4%BA%8E%E5%B7%B2%E7%BB%8F%E5%8F%91%E7%94%9F%E4%BA%86OOM%E7%9A%84%E7%B3%BB%E7%BB%9F"><span class="nav-number">2.</span> <span class="nav-text">二、对于已经发生了OOM的系统</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#JVM-%E7%A9%B6%E7%AB%9F%E9%9C%80%E4%B8%8D%E9%9C%80%E8%A6%81%E8%B0%83%E4%BC%98%EF%BC%9F"><span class="nav-number">3.</span> <span class="nav-text">JVM 究竟需不需要调优？</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#JVM-%E8%B0%83%E4%BC%98%E6%B2%A1%E6%9C%89%E4%BB%80%E4%B9%88%E5%BF%85%E8%A6%81%EF%BC%8C%E4%BD%BF%E7%94%A8%E6%80%A7%E8%83%BD%E6%9B%B4%E5%A5%BD%E7%9A%84%E5%9E%83%E5%9C%BE%E5%9B%9E%E6%94%B6%E5%99%A8%E5%B0%B1%E8%83%BD%E8%A7%A3%E5%86%B3%E9%97%AE%E9%A2%98%E4%BA%86%EF%BC%9F"><span class="nav-number">4.</span> <span class="nav-text">JVM 调优没有什么必要，使用性能更好的垃圾回收器就能解决问题了？**</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#JVM-%E4%BD%95%E6%97%B6%E4%BC%98%E5%8C%96%EF%BC%9F"><span class="nav-number">5.</span> <span class="nav-text">JVM 何时优化？</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#JVM-%E4%BC%98%E5%8C%96%E6%AD%A5%E9%AA%A4%EF%BC%9F"><span class="nav-number">6.</span> <span class="nav-text">JVM 优化步骤？</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E8%B0%83%E4%BC%98%E6%A1%88%E4%BE%8B%EF%BC%9Ametaspace%E5%AF%BC%E8%87%B4%E9%A2%91%E7%B9%81FGC%E9%97%AE%E9%A2%98"><span class="nav-number">7.</span> <span class="nav-text">调优案例：metaspace导致频繁FGC问题</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%80%BB%E7%BB%93"><span class="nav-number">8.</span> <span class="nav-text">总结</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">EthanWhite-Chen</p>
+  <div class="site-description" itemprop="description">不积跬步无以至千里，不积小流无以成江河。分享点滴成长，就有光明未来！</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">22</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">32</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/ethanwhite-chen" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;ethanwhite-chen" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/ykchen998@foxmail.com" title="E-Mail → ykchen998@foxmail.com"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">EthanWhite-Chen</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-area"></i>
+    </span>
+    <span title="Symbols count total">152k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="Reading time total">4:36</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://muse.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>

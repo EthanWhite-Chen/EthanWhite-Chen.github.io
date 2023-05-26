@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.3.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ethanwhite-chen.github.io","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="1、为什么需要线程通信线程是操作系统调度的最小单位，有自己的栈空间，可以按照既定的代码逐步的执行，但是如果每个线程间都孤立的运行，那就会造资源浪费。所以在现实中，我们需要这些线程间可以按照指定的规则共同完成一件任务，所以这些线程之间就需要互相协调，这个过程被称为线程的通信。 线程的通信可以被定义为：  线程通信就是当多个线程共同操作共享的资源时，互相告知自己的状态以避免资源争夺。  2、线程通信的">
+<meta property="og:type" content="article">
+<meta property="og:title" content="线程之间如何进⾏通讯的">
+<meta property="og:url" content="https://ethanwhite-chen.github.io/2023/05/23/%E7%BA%BF%E7%A8%8B%E4%B9%8B%E9%97%B4%E5%A6%82%E4%BD%95%E8%BF%9B%E2%BE%8F%E9%80%9A%E8%AE%AF%E7%9A%84/index.html">
+<meta property="og:site_name" content="ykchen的个人博客">
+<meta property="og:description" content="1、为什么需要线程通信线程是操作系统调度的最小单位，有自己的栈空间，可以按照既定的代码逐步的执行，但是如果每个线程间都孤立的运行，那就会造资源浪费。所以在现实中，我们需要这些线程间可以按照指定的规则共同完成一件任务，所以这些线程之间就需要互相协调，这个过程被称为线程的通信。 线程的通信可以被定义为：  线程通信就是当多个线程共同操作共享的资源时，互相告知自己的状态以避免资源争夺。  2、线程通信的">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://ethanwhite-chen.github.io/2023/05/23/%E7%BA%BF%E7%A8%8B%E4%B9%8B%E9%97%B4%E5%A6%82%E4%BD%95%E8%BF%9B%E2%BE%8F%E9%80%9A%E8%AE%AF%E7%9A%84/05/23/%E7%BA%BF%E7%A8%8B%E4%B9%8B%E9%97%B4%E5%A6%82%E4%BD%95%E8%BF%9B%E2%BE%8F%E9%80%9A%E8%AE%AF%E7%9A%84/v2-347345d6926e3a1dfc81126bad653c2d_720w.webp">
+<meta property="og:image" content="https://ethanwhite-chen.github.io/2023/05/23/%E7%BA%BF%E7%A8%8B%E4%B9%8B%E9%97%B4%E5%A6%82%E4%BD%95%E8%BF%9B%E2%BE%8F%E9%80%9A%E8%AE%AF%E7%9A%84/05/23/%E7%BA%BF%E7%A8%8B%E4%B9%8B%E9%97%B4%E5%A6%82%E4%BD%95%E8%BF%9B%E2%BE%8F%E9%80%9A%E8%AE%AF%E7%9A%84/v2-8b019fb2a574d808b018bc76892d4b38_720w.webp">
+<meta property="og:image" content="https://ethanwhite-chen.github.io/2023/05/23/%E7%BA%BF%E7%A8%8B%E4%B9%8B%E9%97%B4%E5%A6%82%E4%BD%95%E8%BF%9B%E2%BE%8F%E9%80%9A%E8%AE%AF%E7%9A%84/05/23/%E7%BA%BF%E7%A8%8B%E4%B9%8B%E9%97%B4%E5%A6%82%E4%BD%95%E8%BF%9B%E2%BE%8F%E9%80%9A%E8%AE%AF%E7%9A%84/v2-871a224a8559dfba4f751656453f996d_720w.webp">
+<meta property="og:image" content="https://ethanwhite-chen.github.io/2023/05/23/%E7%BA%BF%E7%A8%8B%E4%B9%8B%E9%97%B4%E5%A6%82%E4%BD%95%E8%BF%9B%E2%BE%8F%E9%80%9A%E8%AE%AF%E7%9A%84/05/23/%E7%BA%BF%E7%A8%8B%E4%B9%8B%E9%97%B4%E5%A6%82%E4%BD%95%E8%BF%9B%E2%BE%8F%E9%80%9A%E8%AE%AF%E7%9A%84/v2-c7ba75ae87a07c84a40a9e9d053f4ece_720w.webp">
+<meta property="og:image" content="https://ethanwhite-chen.github.io/2023/05/23/%E7%BA%BF%E7%A8%8B%E4%B9%8B%E9%97%B4%E5%A6%82%E4%BD%95%E8%BF%9B%E2%BE%8F%E9%80%9A%E8%AE%AF%E7%9A%84/05/23/%E7%BA%BF%E7%A8%8B%E4%B9%8B%E9%97%B4%E5%A6%82%E4%BD%95%E8%BF%9B%E2%BE%8F%E9%80%9A%E8%AE%AF%E7%9A%84/v2-0399a18ecdba2fc75eeb9bdf4cb2b95f_720w.webp">
+<meta property="og:image" content="https://ethanwhite-chen.github.io/2023/05/23/%E7%BA%BF%E7%A8%8B%E4%B9%8B%E9%97%B4%E5%A6%82%E4%BD%95%E8%BF%9B%E2%BE%8F%E9%80%9A%E8%AE%AF%E7%9A%84/05/23/%E7%BA%BF%E7%A8%8B%E4%B9%8B%E9%97%B4%E5%A6%82%E4%BD%95%E8%BF%9B%E2%BE%8F%E9%80%9A%E8%AE%AF%E7%9A%84/v2-2d66bec02a173901042d5a7a8758f910_720w.webp">
+<meta property="og:image" content="https://ethanwhite-chen.github.io/2023/05/23/%E7%BA%BF%E7%A8%8B%E4%B9%8B%E9%97%B4%E5%A6%82%E4%BD%95%E8%BF%9B%E2%BE%8F%E9%80%9A%E8%AE%AF%E7%9A%84/05/23/%E7%BA%BF%E7%A8%8B%E4%B9%8B%E9%97%B4%E5%A6%82%E4%BD%95%E8%BF%9B%E2%BE%8F%E9%80%9A%E8%AE%AF%E7%9A%84/v2-c41f942b2334033655a44371ea0fe480_720w.webp">
+<meta property="article:published_time" content="2023-05-23T07:34:01.000Z">
+<meta property="article:modified_time" content="2023-05-23T07:36:54.110Z">
+<meta property="article:author" content="EthanWhite-Chen">
+<meta property="article:tag" content="java">
+<meta property="article:tag" content="多线程">
+<meta property="article:tag" content="线程通信">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://ethanwhite-chen.github.io/2023/05/23/%E7%BA%BF%E7%A8%8B%E4%B9%8B%E9%97%B4%E5%A6%82%E4%BD%95%E8%BF%9B%E2%BE%8F%E9%80%9A%E8%AE%AF%E7%9A%84/05/23/%E7%BA%BF%E7%A8%8B%E4%B9%8B%E9%97%B4%E5%A6%82%E4%BD%95%E8%BF%9B%E2%BE%8F%E9%80%9A%E8%AE%AF%E7%9A%84/v2-347345d6926e3a1dfc81126bad653c2d_720w.webp">
+
+<link rel="canonical" href="https://ethanwhite-chen.github.io/2023/05/23/%E7%BA%BF%E7%A8%8B%E4%B9%8B%E9%97%B4%E5%A6%82%E4%BD%95%E8%BF%9B%E2%BE%8F%E9%80%9A%E8%AE%AF%E7%9A%84/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>线程之间如何进⾏通讯的 | ykchen的个人博客</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">ykchen的个人博客</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">欢迎来到ykchen的技术总结分享博客</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>Search
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+  <a href="https://github.com/ethanwhite-chen" class="github-corner" title="Follow me on GitHub" aria-label="Follow me on GitHub" rel="noopener" target="_blank"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://ethanwhite-chen.github.io/2023/05/23/%E7%BA%BF%E7%A8%8B%E4%B9%8B%E9%97%B4%E5%A6%82%E4%BD%95%E8%BF%9B%E2%BE%8F%E9%80%9A%E8%AE%AF%E7%9A%84/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="EthanWhite-Chen">
+      <meta itemprop="description" content="不积跬步无以至千里，不积小流无以成江河。分享点滴成长，就有光明未来！">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="ykchen的个人博客">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          线程之间如何进⾏通讯的
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2023-05-23 15:34:01 / Modified: 15:36:54" itemprop="dateCreated datePublished" datetime="2023-05-23T15:34:01+08:00">2023-05-23</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E9%9D%A2%E8%AF%95%E9%A2%98%E7%9B%AE/" itemprop="url" rel="index"><span itemprop="name">面试题目</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="Symbols count in article">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">Symbols count in article: </span>
+              <span>6.1k</span>
+            </span>
+            <span class="post-meta-item" title="Reading time">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">Reading time &asymp;</span>
+              <span>11 mins.</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h2 id="1、为什么需要线程通信"><a href="#1、为什么需要线程通信" class="headerlink" title="1、为什么需要线程通信"></a><strong>1、为什么需要线程通信</strong></h2><p>线程是操作系统调度的最小单位，有自己的栈空间，可以按照既定的代码逐步的执行，但是如果每个线程间都孤立的运行，那就会造资源浪费。所以在现实中，我们需要这些线程间可以按照指定的规则共同完成一件任务，所以这些线程之间就需要互相协调，这个过程被称为线程的通信。</p>
+<p>线程的通信可以被定义为：</p>
+<blockquote>
+<p>线程通信就是当多个线程共同操作共享的资源时，互相告知自己的状态以避免资源争夺。</p>
+</blockquote>
+<h2 id="2、线程通信的方式"><a href="#2、线程通信的方式" class="headerlink" title="2、线程通信的方式"></a><strong>2、线程通信的方式</strong></h2><p>线程通信主要可以分为三种方式，分别为<strong>共享内存</strong>、<strong>消息传递</strong>和<strong>管道流</strong>。每种方式有不同的方法来实现</p>
+<ul>
+<li>共享内存：线程之间共享程序的公共状态，线程之间通过读-写内存中的公共状态来隐式通信。</li>
+</ul>
+<blockquote>
+<p>volatile共享内存</p>
+</blockquote>
+<ul>
+<li>消息传递：线程之间没有公共的状态，线程之间必须通过明确的发送信息来显示的进行通信。</li>
+</ul>
+<blockquote>
+<p>wait&#x2F;notify等待通知方式<br>join方式</p>
+</blockquote>
+<ul>
+<li>管道流</li>
+</ul>
+<blockquote>
+<p>管道输入&#x2F;输出流的形式</p>
+</blockquote>
+<h3 id="2-1共享内存"><a href="#2-1共享内存" class="headerlink" title="2.1共享内存"></a><strong>2.1共享内存</strong></h3><p>在学习Volatile之前，我们先了解下Java的内存模型，</p>
+<img src="/2023/05/23/%E7%BA%BF%E7%A8%8B%E4%B9%8B%E9%97%B4%E5%A6%82%E4%BD%95%E8%BF%9B%E2%BE%8F%E9%80%9A%E8%AE%AF%E7%9A%84/05/23/%E7%BA%BF%E7%A8%8B%E4%B9%8B%E9%97%B4%E5%A6%82%E4%BD%95%E8%BF%9B%E2%BE%8F%E9%80%9A%E8%AE%AF%E7%9A%84/v2-347345d6926e3a1dfc81126bad653c2d_720w.webp" class title="img">
+
+<p>在java中，所有堆内存中的所有的数据（实例域、静态域和数组元素）存放在主内存中可以在线程之间共享，一些局部变量、方法中定义的参数存放在本地内存中不会在线程间共享。线程之间的共享变量存储在主内存中，本地内存存储了共享变量的副本。如果线程A要和线程B通信，则需要经过以下步骤</p>
+<blockquote>
+<p>①线程A把本地内存A更新过的共享变量刷新到主内存中<br>②线程B到内存中去读取线程A之前已更新过的共享变量。</p>
+</blockquote>
+<p>这保证了线程间的通信必须经过主内存。下面引出我们要学习的关键字<strong>volatile</strong></p>
+<p>volatile有一个关键的特性：保证内存可见性，即多个线程访问内存中的同一个被volatile关键字修饰的变量时，当某一个线程修改完该变量后，需要先将这个最新修改的值写回到主内存，从而保证下一个读取该变量的线程取得的就是主内存中该数据的最新值，这样就保证线程之间的透明性，便于线程通信。</p>
+<p><strong>代码实现</strong></p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@Author</span>: Simon Lang</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@Date</span>: 2020/5/5 15:13</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">TestVolatile</span> &#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">volatile</span> <span class="type">boolean</span> flag=<span class="literal">true</span>;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span>&#123;</span><br><span class="line">        <span class="keyword">new</span> <span class="title class_">Thread</span>(<span class="keyword">new</span> <span class="title class_">Runnable</span>() &#123;</span><br><span class="line">            <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">run</span><span class="params">()</span> &#123;</span><br><span class="line">                <span class="keyword">while</span> (<span class="literal">true</span>)&#123;</span><br><span class="line">                    <span class="keyword">if</span>(flag)&#123;</span><br><span class="line">                        System.out.println(<span class="string">&quot;线程A&quot;</span>);</span><br><span class="line">                        flag=<span class="literal">false</span>;</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;).start();</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">        <span class="keyword">new</span> <span class="title class_">Thread</span>(<span class="keyword">new</span> <span class="title class_">Runnable</span>() &#123;</span><br><span class="line">            <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">run</span><span class="params">()</span> &#123;</span><br><span class="line">                <span class="keyword">while</span> (<span class="literal">true</span>)&#123;</span><br><span class="line">                    <span class="keyword">if</span>(!flag)&#123;</span><br><span class="line">                        System.out.println(<span class="string">&quot;线程B&quot;</span>);</span><br><span class="line">                        flag=<span class="literal">true</span>;</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;).start();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p><strong>测试结果</strong>：线程A和线程B交替执行</p>
+<img src="/2023/05/23/%E7%BA%BF%E7%A8%8B%E4%B9%8B%E9%97%B4%E5%A6%82%E4%BD%95%E8%BF%9B%E2%BE%8F%E9%80%9A%E8%AE%AF%E7%9A%84/05/23/%E7%BA%BF%E7%A8%8B%E4%B9%8B%E9%97%B4%E5%A6%82%E4%BD%95%E8%BF%9B%E2%BE%8F%E9%80%9A%E8%AE%AF%E7%9A%84/v2-8b019fb2a574d808b018bc76892d4b38_720w.webp" class title="img">
+
+<h3 id="2-2消息传递"><a href="#2-2消息传递" class="headerlink" title="2.2消息传递"></a><strong>2.2消息传递</strong></h3><h3 id="2-2-1wait-x2F-notify等待通知方式"><a href="#2-2-1wait-x2F-notify等待通知方式" class="headerlink" title="2.2.1wait&#x2F;notify等待通知方式"></a>2.2.1wait&#x2F;notify等待通知方式</h3><p>从字面上理解，等待通知机制就是将处于等待状态的线程将由其它线程发出通知后重新获取CPU资源，继续执行之前没有执行完的任务。最典型的例子生产者–消费者模式</p>
+<img src="/2023/05/23/%E7%BA%BF%E7%A8%8B%E4%B9%8B%E9%97%B4%E5%A6%82%E4%BD%95%E8%BF%9B%E2%BE%8F%E9%80%9A%E8%AE%AF%E7%9A%84/05/23/%E7%BA%BF%E7%A8%8B%E4%B9%8B%E9%97%B4%E5%A6%82%E4%BD%95%E8%BF%9B%E2%BE%8F%E9%80%9A%E8%AE%AF%E7%9A%84/v2-871a224a8559dfba4f751656453f996d_720w.webp" class title="img">
+
+<p>有一个产品队列，生产者想要在队列中添加产品，消费者需要从队列中取出产品，如果队列为空，消费者应该等待生产者添加产品后才进行消费，队列为满时，生产者需要等待消费者消费一部分产品后才能继续生产。队列可以认为是java模型里的临界资源，生产者和消费者认为是不同的线程，它们需要交替的占用临界资源来进行各自方法的执行，所以就需要线程间通信。</p>
+<p>生产者–消费者模型主要为了方便复用和解耦，java语言实现线程之间的通信协作的方式是等待&#x2F;通知机制</p>
+<p>等待&#x2F;通知机制提供了三个方法用于线程间的通信</p>
+<p><strong>wait()当前线程释放锁并进入等待(阻塞)状态</strong>notify()唤醒一个正在等待相应对象锁的线程，使其进入就绪队列，以便在当前线程释放锁后继续竞争锁notifyAll()唤醒所有正在等待相应对象锁的线程，使其进入就绪队列，以便在当前线程释放锁后继续竞争锁</p>
+<p>等待&#x2F;通知机制是指一个线程A调用了对象Object的wait()方法进入等待状态，而另一线程B调用了对象Object的notify()或者notifyAll()方法，当线程A收到通知后就可以从对象Object的wait()方法返回，进而执行后序的操作。线程间的通信需要对象Object来完成，对象中的wait()、notify()、notifyAll()方法就如同开关信号，用来完成等待方和通知方的交互。</p>
+<p><strong>测试代码</strong></p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">WaitNotify</span> &#123;</span><br><span class="line">   <span class="keyword">static</span> <span class="type">boolean</span> flag=<span class="literal">true</span>;</span><br><span class="line">   <span class="keyword">static</span> Object lock=<span class="keyword">new</span> <span class="title class_">Object</span>();</span><br><span class="line"></span><br><span class="line">   <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> InterruptedException &#123;</span><br><span class="line">       Thread waitThread=<span class="keyword">new</span> <span class="title class_">Thread</span>(<span class="keyword">new</span> <span class="title class_">WaitThread</span>(),<span class="string">&quot;WaitThread&quot;</span>);</span><br><span class="line">       waitThread.start();</span><br><span class="line">       TimeUnit.SECONDS.sleep(<span class="number">1</span>);</span><br><span class="line">       Thread notifyThread=<span class="keyword">new</span> <span class="title class_">Thread</span>(<span class="keyword">new</span> <span class="title class_">NotifyThread</span>(),<span class="string">&quot;NotifyThread&quot;</span>);</span><br><span class="line">       notifyThread.start();</span><br><span class="line">   &#125;</span><br><span class="line">   <span class="comment">//等待线程</span></span><br><span class="line">   <span class="keyword">static</span> <span class="keyword">class</span> <span class="title class_">WaitThread</span> <span class="keyword">implements</span> <span class="title class_">Runnable</span>&#123;</span><br><span class="line">       <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">run</span><span class="params">()</span> &#123;</span><br><span class="line">           <span class="comment">//加锁</span></span><br><span class="line">           <span class="keyword">synchronized</span> (lock)&#123;</span><br><span class="line">               <span class="comment">//条件不满足时，继续等待，同时释放lock锁</span></span><br><span class="line">               <span class="keyword">while</span> (flag)&#123;</span><br><span class="line">                   System.out.println(<span class="string">&quot;flag为true，不满足条件，继续等待&quot;</span>);</span><br><span class="line">                   <span class="keyword">try</span> &#123;</span><br><span class="line">                       lock.wait();</span><br><span class="line">                   &#125; <span class="keyword">catch</span> (InterruptedException e) &#123;</span><br><span class="line">                       e.printStackTrace();</span><br><span class="line">                   &#125;</span><br><span class="line">               &#125;</span><br><span class="line">               <span class="comment">//条件满足</span></span><br><span class="line">               System.out.println(<span class="string">&quot;flag为false，我要从wait状态返回继续执行了&quot;</span>);</span><br><span class="line"></span><br><span class="line">           &#125;</span><br><span class="line"></span><br><span class="line">       &#125;</span><br><span class="line">   &#125;</span><br><span class="line">   <span class="comment">//通知线程</span></span><br><span class="line">   <span class="keyword">static</span> <span class="keyword">class</span> <span class="title class_">NotifyThread</span> <span class="keyword">implements</span> <span class="title class_">Runnable</span>&#123;</span><br><span class="line"></span><br><span class="line">       <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">run</span><span class="params">()</span> &#123;</span><br><span class="line">           <span class="comment">//加锁</span></span><br><span class="line">           <span class="keyword">synchronized</span> (lock)&#123;</span><br><span class="line">               <span class="comment">//获取lock锁，然后进行通知，但不会立即释放lock锁，需要该线程执行完毕</span></span><br><span class="line">               lock.notifyAll();</span><br><span class="line">               System.out.println(<span class="string">&quot;设置flag为false,我发出通知了，但是我不会立马释放锁&quot;</span>);</span><br><span class="line">               flag=<span class="literal">false</span>;</span><br><span class="line">           &#125;</span><br><span class="line">       &#125;</span><br><span class="line">   &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>测试结果</strong></p>
+<img src="/2023/05/23/%E7%BA%BF%E7%A8%8B%E4%B9%8B%E9%97%B4%E5%A6%82%E4%BD%95%E8%BF%9B%E2%BE%8F%E9%80%9A%E8%AE%AF%E7%9A%84/05/23/%E7%BA%BF%E7%A8%8B%E4%B9%8B%E9%97%B4%E5%A6%82%E4%BD%95%E8%BF%9B%E2%BE%8F%E9%80%9A%E8%AE%AF%E7%9A%84/v2-c7ba75ae87a07c84a40a9e9d053f4ece_720w.webp" class title="img">
+
+<p><strong>NOTE</strong>：使用wait()、notify()和notifyAll()需要注意以下细节</p>
+<ul>
+<li>使用wait()、notify()和notifyAll()需要先调用对象加锁</li>
+<li>调用wait()方法后，线程状态由Running变成Waiting，并将当前线程放置到对象的等待队列</li>
+<li>notify()和notifyAll()方法调用后，等待线程依旧不会从wait()返回，需要调用notify()和notifyAll()的线程释放锁之后等待线程才有机会从wait()返回</li>
+<li>notify()方法将等待队列中的一个等待线程从等待队列中移到同步队列中，而notifyAll()方法则是将等待队列中所有的线程全部转移到同步队列，被移到的线程状态由Waiting变为Blocked。</li>
+<li>从wait()方法返回的前提是获得调用对象的锁</li>
+</ul>
+<p>其实等待通知机制有有一个经典的范式，该范式可以分为两部分，分别是等待方（消费者）和通知方（生产者）</p>
+<ul>
+<li>等待方</li>
+</ul>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">synchronized</span>(对象)&#123;</span><br><span class="line"><span class="keyword">while</span>(条件不满足)&#123;</span><br><span class="line">对象.wait()</span><br><span class="line">&#125;</span><br><span class="line">对应的处理逻辑</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>通知方</li>
+</ul>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">synchronized</span>(对象)&#123;</span><br><span class="line">改变条件</span><br><span class="line">对象.notifyAll</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="2-2-2join方式"><a href="#2-2-2join方式" class="headerlink" title="2.2.2join方式"></a>2.2.2join方式</h3><p>在很多应用场景中存在这样一种情况，主线程创建并启动子线程后，如果子线程要进行很耗时的计算，那么主线程将比子线程先结束，但是主线程需要子线程的计算的结果来进行自己下一步的计算，这时主线程就需要等待子线程，java中提供可join()方法解决这个问题。</p>
+<p>join()方法的作用是：在当前线程A调用线程B的join()方法后，会让当前线程A阻塞，直到线程B的逻辑执行完成，A线程才会解除阻塞，然后继续执行自己的业务逻辑，这样做可以节省计算机中资源。</p>
+<p><strong>测试代码</strong></p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">TestJoin</span> &#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span>&#123;</span><br><span class="line">        Thread thread=<span class="keyword">new</span> <span class="title class_">Thread</span>(<span class="keyword">new</span> <span class="title class_">Runnable</span>() &#123;</span><br><span class="line">            <span class="meta">@Override</span></span><br><span class="line">            <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">run</span><span class="params">()</span> &#123;</span><br><span class="line">                System.out.println(<span class="string">&quot;线程0开始执行了&quot;</span>);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;);</span><br><span class="line">        thread.start();</span><br><span class="line">        <span class="keyword">for</span> (<span class="type">int</span> i=<span class="number">0</span>;i&lt;<span class="number">10</span>;i++)&#123;</span><br><span class="line">            JoinThread jt=<span class="keyword">new</span> <span class="title class_">JoinThread</span>(thread,i);</span><br><span class="line">            jt.start();</span><br><span class="line">            thread=jt;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">static</span> <span class="keyword">class</span> <span class="title class_">JoinThread</span> <span class="keyword">extends</span> <span class="title class_">Thread</span>&#123;</span><br><span class="line">        <span class="keyword">private</span> Thread thread;</span><br><span class="line">        <span class="keyword">private</span> <span class="type">int</span> i;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">public</span> <span class="title function_">JoinThread</span><span class="params">(Thread thread,<span class="type">int</span> i)</span>&#123;</span><br><span class="line">            <span class="built_in">this</span>.thread=thread;</span><br><span class="line">            <span class="built_in">this</span>.i=i;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="meta">@Override</span></span><br><span class="line">        <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">run</span><span class="params">()</span> &#123;</span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                thread.join();</span><br><span class="line">                System.out.println(<span class="string">&quot;线程&quot;</span>+(i+<span class="number">1</span>)+<span class="string">&quot;执行了&quot;</span>);</span><br><span class="line">            &#125; <span class="keyword">catch</span> (InterruptedException e) &#123;</span><br><span class="line">                e.printStackTrace();</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p><strong>测试结果</strong></p>
+<img src="/2023/05/23/%E7%BA%BF%E7%A8%8B%E4%B9%8B%E9%97%B4%E5%A6%82%E4%BD%95%E8%BF%9B%E2%BE%8F%E9%80%9A%E8%AE%AF%E7%9A%84/05/23/%E7%BA%BF%E7%A8%8B%E4%B9%8B%E9%97%B4%E5%A6%82%E4%BD%95%E8%BF%9B%E2%BE%8F%E9%80%9A%E8%AE%AF%E7%9A%84/v2-0399a18ecdba2fc75eeb9bdf4cb2b95f_720w.webp" class title="img">
+
+<p><strong>NOTE</strong>：每个线程的终止的前提是前驱线程的终止，每个线程等待前驱线程终止后，才从join方法返回，实际上，这里涉及了等待&#x2F;通知机制，即下一个线程的执行需要接受前驱线程结束的通知。</p>
+<h3 id="2-3管道输入-x2F-输出流"><a href="#2-3管道输入-x2F-输出流" class="headerlink" title="2.3管道输入&#x2F;输出流"></a><strong>2.3管道输入&#x2F;输出流</strong></h3><p>管道流是是一种使用比较少的线程间通信方式，管道输入&#x2F;输出流和普通文件输入&#x2F;输出流或者网络输出&#x2F;输出流不同之处在于，它主要用于线程之间的数据传输，传输的媒介为管道。</p>
+<p>管道输入&#x2F;输出流主要包括4种具体的实现：PipedOutputStrean、PipedInputStrean、PipedReader和PipedWriter，前两种面向字节，后两种面向字符。</p>
+<p>java的管道的输入和输出实际上使用的是一个循环缓冲数组来实现的，默认为1024，输入流从这个数组中读取数据，输出流从这个数组中写入数据，当这个缓冲数组已满的时候，输出流所在的线程就会被阻塞，当向这个缓冲数组为空时，输入流所在的线程就会被阻塞。</p>
+<img src="/2023/05/23/%E7%BA%BF%E7%A8%8B%E4%B9%8B%E9%97%B4%E5%A6%82%E4%BD%95%E8%BF%9B%E2%BE%8F%E9%80%9A%E8%AE%AF%E7%9A%84/05/23/%E7%BA%BF%E7%A8%8B%E4%B9%8B%E9%97%B4%E5%A6%82%E4%BD%95%E8%BF%9B%E2%BE%8F%E9%80%9A%E8%AE%AF%E7%9A%84/v2-2d66bec02a173901042d5a7a8758f910_720w.webp" class title="img">
+
+
+
+<blockquote>
+<p>buffer：缓冲数组，默认为1024<br>out：从缓冲数组中读数据<br>in：从缓冲数组中写数据</p>
+</blockquote>
+<p><strong>测试代码</strong></p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">TestPip</span> &#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> IOException &#123;</span><br><span class="line">        <span class="type">PipedWriter</span> <span class="variable">writer</span>  <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">PipedWriter</span>();</span><br><span class="line">        <span class="type">PipedReader</span> <span class="variable">reader</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">PipedReader</span>();</span><br><span class="line">        <span class="comment">//使用connect方法将输入流和输出流连接起来</span></span><br><span class="line">        writer.connect(reader);</span><br><span class="line">        <span class="type">Thread</span> <span class="variable">printThread</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Thread</span>(<span class="keyword">new</span> <span class="title class_">Print</span>(reader) , <span class="string">&quot;PrintThread&quot;</span>);</span><br><span class="line">        <span class="comment">//启动线程printThread</span></span><br><span class="line">        printThread.start();</span><br><span class="line">        <span class="type">int</span> <span class="variable">receive</span> <span class="operator">=</span> <span class="number">0</span>;</span><br><span class="line">        <span class="keyword">try</span>&#123;</span><br><span class="line">            <span class="comment">//读取输入的内容</span></span><br><span class="line">            <span class="keyword">while</span>((receive = System.in.read()) != -<span class="number">1</span>)&#123;</span><br><span class="line">                writer.write(receive);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;<span class="keyword">finally</span> &#123;</span><br><span class="line">            writer.close();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">class</span> <span class="title class_">Print</span> <span class="keyword">implements</span> <span class="title class_">Runnable</span> &#123;</span><br><span class="line">        <span class="keyword">private</span> PipedReader reader;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">public</span> <span class="title function_">Print</span><span class="params">(PipedReader reader)</span> &#123;</span><br><span class="line">            <span class="built_in">this</span>.reader = reader;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="meta">@Override</span></span><br><span class="line">        <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">run</span><span class="params">()</span> &#123;</span><br><span class="line">            <span class="type">int</span> <span class="variable">receive</span> <span class="operator">=</span> <span class="number">0</span>;</span><br><span class="line">            <span class="keyword">try</span>&#123;</span><br><span class="line">                <span class="keyword">while</span> ((receive = reader.read()) != -<span class="number">1</span>)&#123;</span><br><span class="line">                    <span class="comment">//字符转换</span></span><br><span class="line">                    System.out.print((<span class="type">char</span>) receive);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;<span class="keyword">catch</span> (IOException e) &#123;</span><br><span class="line">                System.out.print(e);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p><strong>测试结果</strong></p>
+<img src="/2023/05/23/%E7%BA%BF%E7%A8%8B%E4%B9%8B%E9%97%B4%E5%A6%82%E4%BD%95%E8%BF%9B%E2%BE%8F%E9%80%9A%E8%AE%AF%E7%9A%84/05/23/%E7%BA%BF%E7%A8%8B%E4%B9%8B%E9%97%B4%E5%A6%82%E4%BD%95%E8%BF%9B%E2%BE%8F%E9%80%9A%E8%AE%AF%E7%9A%84/v2-c41f942b2334033655a44371ea0fe480_720w.webp" class title="img">
+
+
+
+<p><strong>NOTE</strong>：对于Piped类型的流，必须先进性绑定，也就是调用connect()方法，如果没有将输入&#x2F;输出流绑定起来，对于该流的访问将抛出异常。</p>
+<p>如果有什么疑问可以联系我，（公众号有我的联系方式）让我们每天一起每天进步一点点</p>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div>感谢大佬的打赏，我会继续努力哒！</div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    Donate
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/vx-pay.jpg" alt="EthanWhite-Chen WeChat Pay">
+        <p>WeChat Pay</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/zfb-pay.jpg" alt="EthanWhite-Chen Alipay">
+        <p>Alipay</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/java/" rel="tag"># java</a>
+              <a href="/tags/%E5%A4%9A%E7%BA%BF%E7%A8%8B/" rel="tag"># 多线程</a>
+              <a href="/tags/%E7%BA%BF%E7%A8%8B%E9%80%9A%E4%BF%A1/" rel="tag"># 线程通信</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2023/05/23/Spring%E4%BA%8B%E5%8A%A1%E5%8E%9F%E7%90%86/" rel="prev" title="Spring事务原理">
+      <i class="fa fa-chevron-left"></i> Spring事务原理
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2023/05/23/%E5%85%B3%E4%BA%8E%E6%AD%BB%E9%94%81%E4%BB%A5%E5%8F%8A%E5%A6%82%E4%BD%95%E6%9F%A5%E7%9C%8B%E7%BA%BF%E7%A8%8B%E6%98%AF%E5%90%A6%E6%9C%89%E6%AD%BB%E9%94%81/" rel="next" title="关于死锁以及如何查看线程是否有死锁">
+      关于死锁以及如何查看线程是否有死锁 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#1%E3%80%81%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81%E7%BA%BF%E7%A8%8B%E9%80%9A%E4%BF%A1"><span class="nav-number">1.</span> <span class="nav-text">1、为什么需要线程通信</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2%E3%80%81%E7%BA%BF%E7%A8%8B%E9%80%9A%E4%BF%A1%E7%9A%84%E6%96%B9%E5%BC%8F"><span class="nav-number">2.</span> <span class="nav-text">2、线程通信的方式</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#2-1%E5%85%B1%E4%BA%AB%E5%86%85%E5%AD%98"><span class="nav-number">2.1.</span> <span class="nav-text">2.1共享内存</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-2%E6%B6%88%E6%81%AF%E4%BC%A0%E9%80%92"><span class="nav-number">2.2.</span> <span class="nav-text">2.2消息传递</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-2-1wait-x2F-notify%E7%AD%89%E5%BE%85%E9%80%9A%E7%9F%A5%E6%96%B9%E5%BC%8F"><span class="nav-number">2.3.</span> <span class="nav-text">2.2.1wait&#x2F;notify等待通知方式</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-2-2join%E6%96%B9%E5%BC%8F"><span class="nav-number">2.4.</span> <span class="nav-text">2.2.2join方式</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-3%E7%AE%A1%E9%81%93%E8%BE%93%E5%85%A5-x2F-%E8%BE%93%E5%87%BA%E6%B5%81"><span class="nav-number">2.5.</span> <span class="nav-text">2.3管道输入&#x2F;输出流</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">EthanWhite-Chen</p>
+  <div class="site-description" itemprop="description">不积跬步无以至千里，不积小流无以成江河。分享点滴成长，就有光明未来！</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">22</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">32</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/ethanwhite-chen" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;ethanwhite-chen" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/ykchen998@foxmail.com" title="E-Mail → ykchen998@foxmail.com"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">EthanWhite-Chen</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-area"></i>
+    </span>
+    <span title="Symbols count total">152k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="Reading time total">4:36</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://muse.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>

@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 6.3.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"ethanwhite-chen.github.io","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="Redis 持久化方式  RDB快照概述 在默认情况下， Redis 将数据库快照保存在名字为 dump.rdb的二进制文件中。你可以对 Redis 进行设置， 让它在“ N 秒内数据集至少有 M 个改动”这一条件被满足时， 自动保存一次数据集。 你也可以通过调用 SAVE或者 BGSAVE ， 手动让 Redis 进行数据集保存操作。 比如说， 以下设置会让 Redis 在满足“ 60 秒内有至">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Redis教程：Redis 持久化">
+<meta property="og:url" content="https://ethanwhite-chen.github.io/2023/05/24/Redis%E6%95%99%E7%A8%8B%EF%BC%9ARedis-%E6%8C%81%E4%B9%85%E5%8C%96/index.html">
+<meta property="og:site_name" content="ykchen的个人博客">
+<meta property="og:description" content="Redis 持久化方式  RDB快照概述 在默认情况下， Redis 将数据库快照保存在名字为 dump.rdb的二进制文件中。你可以对 Redis 进行设置， 让它在“ N 秒内数据集至少有 M 个改动”这一条件被满足时， 自动保存一次数据集。 你也可以通过调用 SAVE或者 BGSAVE ， 手动让 Redis 进行数据集保存操作。 比如说， 以下设置会让 Redis 在满足“ 60 秒内有至">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://ethanwhite-chen.github.io/2023/05/24/Redis%E6%95%99%E7%A8%8B%EF%BC%9ARedis-%E6%8C%81%E4%B9%85%E5%8C%96/05/24/Redis%E6%95%99%E7%A8%8B%EF%BC%9ARedis-%E6%8C%81%E4%B9%85%E5%8C%96/v2-c860405f0c426655102ad1294caebbc2_720w.webp">
+<meta property="og:image" content="https://ethanwhite-chen.github.io/2023/05/24/Redis%E6%95%99%E7%A8%8B%EF%BC%9ARedis-%E6%8C%81%E4%B9%85%E5%8C%96/05/24/Redis%E6%95%99%E7%A8%8B%EF%BC%9ARedis-%E6%8C%81%E4%B9%85%E5%8C%96/v2-fc88a7b32d3394a14a0d50a72318694e_720w.webp">
+<meta property="article:published_time" content="2023-05-24T12:04:55.000Z">
+<meta property="article:modified_time" content="2023-05-24T12:45:46.445Z">
+<meta property="article:author" content="EthanWhite-Chen">
+<meta property="article:tag" content="java">
+<meta property="article:tag" content="redis持久化">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://ethanwhite-chen.github.io/2023/05/24/Redis%E6%95%99%E7%A8%8B%EF%BC%9ARedis-%E6%8C%81%E4%B9%85%E5%8C%96/05/24/Redis%E6%95%99%E7%A8%8B%EF%BC%9ARedis-%E6%8C%81%E4%B9%85%E5%8C%96/v2-c860405f0c426655102ad1294caebbc2_720w.webp">
+
+<link rel="canonical" href="https://ethanwhite-chen.github.io/2023/05/24/Redis%E6%95%99%E7%A8%8B%EF%BC%9ARedis-%E6%8C%81%E4%B9%85%E5%8C%96/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>Redis教程：Redis 持久化 | ykchen的个人博客</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">ykchen的个人博客</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">欢迎来到ykchen的技术总结分享博客</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>Search
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="Searching..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+  <a href="https://github.com/ethanwhite-chen" class="github-corner" title="Follow me on GitHub" aria-label="Follow me on GitHub" rel="noopener" target="_blank"><svg width="80" height="80" viewBox="0 0 250 250" aria-hidden="true"><path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path><path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path><path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path></svg></a>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://ethanwhite-chen.github.io/2023/05/24/Redis%E6%95%99%E7%A8%8B%EF%BC%9ARedis-%E6%8C%81%E4%B9%85%E5%8C%96/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="EthanWhite-Chen">
+      <meta itemprop="description" content="不积跬步无以至千里，不积小流无以成江河。分享点滴成长，就有光明未来！">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="ykchen的个人博客">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Redis教程：Redis 持久化
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2023-05-24 20:04:55 / Modified: 20:45:46" itemprop="dateCreated datePublished" datetime="2023-05-24T20:04:55+08:00">2023-05-24</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/JAVA/" itemprop="url" rel="index"><span itemprop="name">JAVA</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="Symbols count in article">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">Symbols count in article: </span>
+              <span>9.6k</span>
+            </span>
+            <span class="post-meta-item" title="Reading time">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">Reading time &asymp;</span>
+              <span>17 mins.</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>Redis 持久化方式</p>
+<hr>
+<h1 id="RDB快照"><a href="#RDB快照" class="headerlink" title="RDB快照"></a>RDB快照</h1><p>概述</p>
+<p>在默认情况下， Redis 将数据库快照保存在名字为 dump.rdb的二进制文件中。你可以对 Redis 进行设置， 让它在“ N 秒内数据集至少有 M 个改动”这一条件被满足时， 自动保存一次数据集。</p>
+<p>你也可以通过调用 SAVE或者 BGSAVE ， 手动让 Redis 进行数据集保存操作。 比如说， 以下设置会让 Redis 在满足“ 60 秒内有至少有 1000 个键被改动”这一条件时， 自动保存一次数据集:</p>
+<p>save 60 1000</p>
+<p>这种持久化方式被称为快照 snapshotting.</p>
+<h2 id="何时执行快照"><a href="#何时执行快照" class="headerlink" title="何时执行快照"></a><strong>何时执行快照</strong></h2><p>出现下面的情况redis会快照内存里的数据</p>
+<ul>
+<li>用户发送bgsave命令(此时redis会fork一个子进程,子进程负责生成硬盘文件,父进程负责继续接受命令)</li>
+<li>用户发送save命令(和bgsave命令不同,发送save命令后,到系统创建快照完成之前系统不会再接收新的命令,换 句话说save命令会阻塞后面的命令,而bgsave不会)</li>
+<li>用户在配置文件了配置了类似这样的命令 save 60 1000</li>
+<li>这个的意思是说,自从上次快照成功算起,如果满足”60秒内有1000次写入”这个条件,系统就自动调用bgsave,如 果配置文件里有多个save命令,只有满足一个就调用bgsave命令</li>
+<li>用户发送shutdown,系统会先执行save命令阻塞客户端,然后关闭服务器</li>
+<li>当有主从架构时,从服务器向主服务器发送sync命令来执行复制操作时,只有主服务器当时没有进行bgsave操 作,那么主服务器就会执行bgsave操作。</li>
+</ul>
+<h2 id="快照的配置信息"><a href="#快照的配置信息" class="headerlink" title="快照的配置信息"></a><strong>快照的配置信息</strong></h2><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">save 60 1000</span><br><span class="line">stop-writes-on-bgsave-error no rdbcompression yes</span><br><span class="line">dbﬁlename dump.rdb</span><br><span class="line">dir ./</span><br></pre></td></tr></table></figure>
+
+<h2 id="工作方式"><a href="#工作方式" class="headerlink" title="工作方式"></a><strong>工作方式</strong></h2><p>当 Redis 需要保存 dump.rdb 文件时， 服务器执行以下操作: Redis 调用forks. 同时拥有父进程和子进程。</p>
+<p>子进程将数据集写入到一个临时 RDB 文件中。</p>
+<p>当子进程完成对新 RDB 文件的写入时，Redis 用新 RDB 文件替换原来的 RDB 文件，并删除旧的 RDB 文件。这种工作方式使得 Redis 可以从写时复制（copy-on-write）机制中获益。</p>
+<h1 id="只追加操作的文件（Append-only-ﬁle，AOF"><a href="#只追加操作的文件（Append-only-ﬁle，AOF" class="headerlink" title="只追加操作的文件（Append-only ﬁle，AOF)"></a>只追加操作的文件（Append-only ﬁle，AOF)</h1><p>概述</p>
+<p>快照功能并不是非常耐久（dura ble）： 如果 Redis 因为某些原因而造成故障停机， 那么服务器将丢失最近写入、且仍未保存到快照中的那些数据。 从 1.1 版本开始， Redis 增加了一种完全耐久的持久化方式： AOF 持久化。</p>
+<p>你可以在配置文件中打开AOF方式:</p>
+<p>appendonly yes</p>
+<p>从现在开始， 每当 Redis 执行一个改变数据集的命令时（比如 SET）， 这个命令就会被追加到 AOF 文件的末尾。这样的话， 当 Redis 重新启时， 程序就可以通过重新执行 AOF 文件中的命令来达到重建数据集的目的。</p>
+<h2 id="日志重写"><a href="#日志重写" class="headerlink" title="日志重写"></a><strong>日志重写</strong></h2><p>因为 AOF 的运作方式是不断地将命令追加到文件的末尾， 所以随着写入命令的不断增加， AOF 文件的体积也会变得越来越大。举个例子， 如果你对一个计数器调用了 100 次 INCR ， 那么仅仅是为了保存这个计数器的当前值， AOF 文件就需要使用 100 条记录（entry）。然而在实际上， 只使用一条 SET 命令已经足以保存计数器的当前值了， 其余 99 条记录实际上都是多余的。</p>
+<p>为了处理这种情况， Redis 支持一种有趣的特性： 可以在不打断服务客户端的情况下， 对 AOF 文件进行重建</p>
+<p>（rebuild）。执行 BGREWRITEAOF 命令， Redis 将生成一个新的 AOF 文件， 这个文件包含重建当前数据集所需的最少命令。Redis 2.2 需要自己手动执行 BGREWRITEAOF 命令； Redis 2.4 则可以自动触发 AOF 重写， 具体信息请查看 2.4 的示例配置文件。</p>
+<h2 id="AOF有多耐用"><a href="#AOF有多耐用" class="headerlink" title="AOF有多耐用"></a><strong>AOF有多耐用</strong></h2><p>你可以配置 Redis 多久才将数据 fsync (从缓存区输入)到磁盘一次。有三种方式：</p>
+<p>每次有新命令追加到 AOF 文件时就执行一次 fsync ：非常慢，也非常安全</p>
+<p>每秒 fsync 一次：足够快（和使用 RDB 持久化差不多），并且在故障时只会丢失 1 秒钟的数据。从不 fsync ：将数据交给操作系统来处理。更快，也更不安全的选择。</p>
+<p>推荐（并且也是默认）的措施为每秒 fsync 一次， 这种 fsync 策略可以兼顾速度和安全性。</p>
+<p><strong>如果AOF文件损坏了怎么办？</strong></p>
+<p>服务器可能在程序正在对 AOF 文件进行写入时停机， 如果停机造成了 AOF 文件出错（corrupt）， 那么 Redis 在重启时会拒绝载入这个 AOF 文件， 从而确保数据的一致性不会被破坏。当发生这种情况时， 可以用以下方法来修复出错的 AOF 文件：</p>
+<ol>
+<li>为现有的 AOF 文件创建一个备份。</li>
+<li>使用 Redis 附带的 redis-check-aof 程序，对原来的 AOF 文件进行修复: redis-check-aof –ﬁx</li>
+<li>（可选）使用 diﬀ -u 对比修复后的 AOF 文件和原始 AOF 文件的备份，查看两个文件之间的不同之处。</li>
+<li>重启 Redis 服务器，等待服务器载入修复后的 AOF 文件，并进行数据恢复。</li>
+</ol>
+<p><strong>AOP重写原理</strong></p>
+<p>AOF 重写和 RDB 创建快照一样，都巧妙地利用了写时复制机制: redis 执行 fork() ，现在同时拥有父进程和子进程。</p>
+<p>子进程开始将新 AOF 文件的内容写入到临时文件。</p>
+<p>对于所有新执行的写入命令，父进程一边将它们累积到一个内存缓存中，一边将这些改动追加到现有 AOF 文件的末尾,这样样即使在重写的中途发生停机，现有的 AOF 文件也还是安全的。</p>
+<p>当子进程完成重写工作时，它给父进程发送一个信号，父进程在接收到信号之后，将内存缓存中的所有数据 追加到新 AOF 文件的末尾。</p>
+<p>搞定！现在 Redis 原子地用新文件替换旧文件，之后所有命令都会直接追加到新 AOF 文件的末尾。</p>
+<p><strong>怎样从RDB方式切换为AOF方式</strong></p>
+<p>在 Redis 2.2 或以上版本，可以在不重启的情况下，从 RDB 切换到 AOF ： 为最新的 dump.rdb 文件创建一个备份。</p>
+<p>将备份放到一个安全的地方。</p>
+<p>执行以下两条命令:</p>
+<p>-redis-cli conﬁg set appendonly yes redis-cli conﬁg set save “”</p>
+<p>确保写命令会被正确地追加到 AOF 文件的末尾。</p>
+<p>执行的第一条命令开启了 AOF 功能： Redis 会阻塞直到初始 AOF 文件创建完成为止， 之后 Redis 会继续处理命令请求， 并开始将写入命令追加到 AOF 文件末尾。</p>
+<p>执行的第二条命令用于关闭 RDB 功能。 这一步是可选的， 如果你愿意的话， 也可以同时使用 RDB 和 AOF 这两种持久化功能。</p>
+<p>重要:别忘了在 redis.conf 中打开 AOF 功能！ 否则的话， 服务器重启之后， 之前通过 CONFIG SET 设置的配置就会被遗忘， 程序会按原来的配置来启动服务器。</p>
+<p><strong>AOF和RDB之间的相互作用</strong></p>
+<p>在版本号大于等于 2.4 的 Redis 中， BGSAVE 执行的过程中， 不可以执行 BGREWRITEAOF 。 反过来说， 在BGREWRITEAOF 执行的过程中， 也不可以执行 BGSAVE。这可以防止两个 Redis 后台进程同时对磁盘进行大量的I&#x2F;O 操作。</p>
+<p>如果 BGSAVE 正在执行， 并且用户显示地调用 BGREWRITEAOF 命令， 那么服务器将向用户回复一个 OK 状态， 并告知用户， BGREWRITEAOF 已经被预定执行： 一旦 BGSAVE 执行完毕， BGREWRITEAOF 就会正式开始。 当Redis 启动时， 如果 RDB 持久化和 AOF 持久化都被打开了， 那么程序会优先使用 AOF 文件来恢复数据集， 因为AOF 文件所保存的数据通常是最完整的。</p>
+<p><strong>AOF VS RDB</strong></p>
+<p>RDB持久化方式能够在指定的时间间隔能对你的数据进行快照存储.</p>
+<p>AOF持久化方式记录每次对服务器写的操作,当服务器重启的时候会重新执行这些命令来恢复原始的数 据,AOF命令以redis协议追加保存每次写的操作到文件末尾.Redis还能对AOF文件进行后台重写,使得AOF</p>
+<p>文件的体积不至于过大.</p>
+<p>如果你只希望你的数据在服务器运行的时候存在,你也可以不使用任何持久化方式.</p>
+<p>你也可以同时开启两种持久化方式, 在这种情况下, 当redis重启的时候会优先载入AOF文件来恢复原始的数据,因为在通常情况下AOF文件保存的数据集要比RDB文件保存的数据集要完整.</p>
+<p>最重要的事情是了解RDB和AOF持久化方式的不同,让我们以RDB持久化方式开始:</p>
+<p><strong>RDB的优缺点</strong></p>
+<p>优点</p>
+<p>RDB是一个非常紧凑的文件,它保存了某个时间点得数据集,非常适用于数据集的备份,比如你可以在每个 小时报保存一下过去24小时内的数据,同时每天保存过去30天的数据,这样即使出了问题你也可以根据需 求恢复到不同版本的数据集.</p>
+<p>RDB是一个紧凑的单一文件,很方便传送到另一个远端数据中心或者亚马逊的S3（可能加密），非常适用 于灾难恢复.</p>
+<p>RDB在保存RDB文件时父进程唯一需要做的就是fork出一个子进程,接下来的工作全部由子进程来做，父 进程不需要再做其他IO操作，所以RDB持久化方式可以最大化redis的性能.</p>
+<p>与AOF相比,在恢复大的数据集的时候，RDB方式会更快一些.</p>
+<p>缺点</p>
+<p>如果你希望在redis意外停止工作（例如电源中断）的情况下丢失的数据最少的话，那么RDB不适合你.虽 然你可以配置不同的save时间点(例如每隔5分钟并且对数据集有100个写的操作),是Redis要完整的保存 整个数据集是一个比较繁重的工作,你通常会每隔5分钟或者更久做一次完整的保存,万一在Redis意外宕 机,你可能会丢失几分钟的数据.</p>
+<p>RDB 需要经常fork子进程来保存数据集到硬盘上,当数据集比较大的时候,fork的过程是非常耗时的,可能会导致Redis在一些毫秒级内不能响应客户端的请求.如果数据集巨大并且CPU性能不是很好的情况下,这 种情况会持续1秒,AOF也需要fork,但是你可以调节重写日志文件的频率来提高数据集的耐久度.</p>
+<p><strong>AOF 优缺点</strong></p>
+<p>优点 -</p>
+<p>使用AOF 会让你的Redis更加耐久: 你可以使用不同的fsync策略：无fsync,每秒fsync,每次写的时候fsync. 使用默认的每秒fsync策略,Redis的性能依然很好(fsync是由后台线程进行处理的,主线程会尽力处理客户 端请求),一旦出现故障，你最多丢失1秒的数据.</p>
+<p>AOF文件是一个只进行追加的日志文件,所以不需要写入seek,即使由于某些原因(磁盘空间已满，写的过 程中宕机等等)未执行完整的写入命令,你也也可使用redis-check-aof工具修复这些问题.</p>
+<p>Redis 可以在 AOF 文件体积变得过大时，自动地在后台对 AOF 进行重写： 重写后的新 AOF 文件包含了恢复当前数据集所需的最小命令集合。 整个重写操作是绝对安全的，因为 Redis 在创建新 AOF 文件的过程中，会继续将命令追加到现有的 AOF 文件里面，即使重写过程中发生停机，现有的 AOF 文件也不会丢失。 而一旦新 AOF 文件创建完毕，Redis 就会从旧 AOF 文件切换到新 AOF 文件，并开始对新 AOF 文件进行追加操作。</p>
+<p>AOF 文件有序地保存了对数据库执行的所有写入操作， 这些写入操作以 Redis 协议的格式保存， 因此AOF 文件的内容非常容易被人读懂， 对文件进行分析（parse）也很轻松。 导出（export） AOF 文件也非常简单： 举个例子， 如果你不小心执行了 FLUSHALL 命令， 但只要 AOF 文件未被重写， 那么只要停止服务器， 移除 AOF 文件末尾的 FLUSHALL 命令， 并重启 Redis ， 就可以将数据集恢复到FLUSHALL 执行之前的状态。</p>
+<p>缺点 -</p>
+<p>对于相同的数据集来说，AOF 文件的体积通常要大于 RDB 文件的体积。</p>
+<p>根据所使用的 fsync 策略，AOF 的速度可能会慢于 RDB 。 在一般情况下， 每秒 fsync 的性能依然非常高， 而关闭 fsync 可以让 AOF 的速度和 RDB 一样快， 即使在高负荷之下也是如此。 不过在处理巨大的写入载入时，RDB 可以提供更有保证的最大延迟时间（latency）。</p>
+<p><strong>备份redis数据</strong></p>
+<p>在阅读这个小节前， 请牢记下面这句话: 确保你的数据由完整的备份. 磁盘故障， 节点失效， 诸如此类的问题都可能让你的数据消失不见， 不进行备份是非常危险的。</p>
+<p>Redis 对于数据备份是非常友好的， 因为你可以在服务器运行的时候对 RDB 文件进行复制： RDB 文件一旦被创建， 就不会进行任何修改。 当服务器要创建一个新的 RDB 文件时， 它先将文件的内容保存在一个临时文件里面， 当临时文件写入完毕时， 程序才使用 rename(2) 原子地用临时文件替换原来的 RDB 文件。</p>
+<p>这也就是说， 无论何时， 复制 RDB 文件都是绝对安全的。</p>
+<p>创建一个定期任务（cron job）， 每小时将一个 RDB 文件备份到一个文件夹， 并且每天将一个 RDB 文件备份到另一个文件夹。</p>
+<p>确保快照的备份都带有相应的日期和时间信息， 每次执行定期任务脚本时， 使用 ﬁnd 命令来删除过期的快照： 比如说， 你可以保留最近 48 小时内的每小时快照， 还可以保留最近一两个月的每日快照。</p>
+<p>至少每天一次， 将 RDB 备份到你的数据中心之外， 或者至少是备份到你运行 Redis 服务器的物理机器之外。</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">#! /bin/bash</span><br><span class="line">PATH=/usr/local/bin:$PATH</span><br><span class="line">redis-cli SAVE</span><br><span class="line">date=$(date +&quot;%Y%m%d&quot;)</span><br><span class="line">cp /var/lib/redis/6379/dump.rdb /data01/cache_backup/$date.rdb</span><br><span class="line">echo &quot;done!&quot;</span><br></pre></td></tr></table></figure>
+
+<p><strong>容灾备份</strong></p>
+<p>Redis 的容灾备份基本上就是对数据进行备份， 并将这些备份传送到多个不同的外部数据中心。容灾备份可以在</p>
+<p>Redis 运行并产生快照的主数据中心发生严重的问题时， 仍然让数据处于安全状态。</p>
+<p>因为很多 Redis 用户都是创业者， 他们没有大把大把的钱可以浪费， 所以下面介绍的都是一些实用又便宜的容灾备份方法：</p>
+<p>Amazon S3 ，以及其他类似 S3 的服务，是一个构建灾难备份系统的好地方。 最简单的方法就是将你的每小时或者每日 RDB 备份加密并传送到 S3 。 对数据的加密可以通过 gpg -c 命令来完成（对称加密模式）。 记得把你的密码放到几个不同的、安全的地方去（比如你可以把密码复制给你组织里最重要的人物）。 同时使用多个储存服务来保存数据文件，可以提升数据的安全性。</p>
+<p>传送快照可以使用 SCP 来完成（SSH 的组件）。 以下是简单并且安全的传送方法： 买一个离你的数据中心非常远的 VPS ， 装上 SSH ， 创建一个无口令的 SSH 客户端 key ， 并将这个 key 添加到 VPS 的authorized_keys 文件中， 这样就可以向这个 VPS 传送快照备份文件了。 为了达到最好的数据安全性， 至少要从两个不同的提供商那里各购买一个 VPS 来进行数据容灾备份。</p>
+<p>需要注意的是， 这类容灾系统如果没有小心地进行处理的话， 是很容易失效的。最低限度下， 你应该在文件传送完毕之后， 检查所传送备份文件的体积和原始快照文件的体积是否相同。 如果你使用的是VPS ， 那么还可以通过比对文件的 SHA1 校验和来确认文件是否传送完整。</p>
+<p>另外， 你还需要一个独立的警报系统， 让它在负责传送备份文件的传送器（transfer）失灵时通知你。</p>
+<h2 id="AOF重写"><a href="#AOF重写" class="headerlink" title="AOF重写"></a>AOF<strong>重写</strong></h2><p>很多软件，都会对日志下手，因为，日志的优点保住，还是不错的，就是可以尽量不丢失数据，并且，同时克服一下它的缺点，就是把体量变小，恢复变快。所以，redis 的也采取了一定的做法：在 4.0 以前，有一个机制叫做重写。比如，回到之前的例子，不断创建 key，删除 key；那么，你可以发现，这样的操作，都可以抵消，对不对。再比如，假设有一个 list，你不断往里面 push 1W 个 v，那么，是不是就可以只写一条 push 语句，然后让它执行 1W 次就 ok？所以，总结一下，就是：<strong>删除抵消的，合并重复的。</strong></p>
+<p>现在也知道了，最终得到的也是一个纯指令的 AOF 文件虽然指令被削减了一部分，但是纯指令，还是得一条条去恢复，所以效率还是有些低的。所以，后来，redis 偷偷地学习了 hdfs 的优点，就是，从 4.0 版本开始，AOF 会包含 RDB 全量，然后追加新的写操作。<br>而包含一个 RDB 全量之后，就可以直接把数据给导入内存即可，不用一步一步的操作。而追加的一部分写操作，又可以保证数据的全。在重写的时候，会先把老的数据，以 RDB 的形式，存到 AOF 文件中，然后，再把增量的，以指令的方式存入 AOF。AOF 就会包含二进制数据和增量的日志，于是就成了一个混合体。于是，这么改进，AOF 就把两个优点都占有了：既有 RDB 的快；又有 AOF 的全。fsync的间隔这样，明白了 AOF 之后，我们继续回头。redis 既然是一个内存级 kv 数据库，那么，这时写操作就会触发 I&#x2F;O，<br>那这样的话，就会影响 redis 的写速度，就会变慢。</p>
+<p>redis 给了 3 个级别：</p>
+<p><strong>NO</strong><br>        <strong>ALWAYS</strong><br><strong>everysec</strong><br>首先，如果你还不知道 fsync 是什么，那我得先简单描述一下：<br>传统的 UNIX 实现在内核中设有缓冲区高速缓存或页面高速缓存，大多数磁盘 I&#x2F;O 都通过缓冲进行。<br>当将数据写入文件时，内核通常先将该数据复制到其中一个缓冲区中，如果该缓冲区尚未写满，则并不将其排入输出队列，而是等待其写满或者当内核需要重用该缓冲区以便存放其他磁盘块数据时，再将该缓冲排入输出队列，然后待其到达队首时，才进行实际的 I&#x2F;O 操作。<br>这种输出方式被称为延迟写（delayed write）</p>
+<p>延迟写减少了磁盘读写次数，但是却降低了文件内容的更新速度，于是，就可能使得写到文件中的数据在一段时间内并没有写到磁盘上。这样，当系统发生故障时，这种延迟可能造成文件更新内容的丢失。所以，redis 给出的三个级别，就是让我们在数据可能丢失的数量、和性能之间，做出一个权衡。假设，我们采用 NO，从不手动将数据刷入磁盘，无疑，由于不用一直写磁盘，所以 redis 的性能，一定是最高的。但是，这样，就只有在缓冲区满了的时候，才会刷数据到磁盘。于是，在宕机的时候，会丢失的数据，则会有很多。假设，我们采用 ALWAYS，每次写，都将指令追加到 AOF。这样，我们最多最多，丢失一条数据（就是最后哪一条还没来得及写进磁盘的时候）。但是，由于每笔操作都往磁盘刷写，那性能一定是会受到很大的影响。所以，很多时候，会倾向于使用 everysec，每秒。<br>这样的话，由于不会次次写磁盘，所以对性能的影响还不至于那么大，而且，时间间隔也只有一秒，即使丢失，影响也不会太大。<br>所以，这往往作为一个折中方案。</p>
+<h2 id="AOF-重写控制与详解"><a href="#AOF-重写控制与详解" class="headerlink" title="AOF 重写控制与详解"></a>AOF 重写控制与详解</h2><p>描述：Redis 生成新的 AOF 文件来代替旧 AOF 文件，这个新的 AOF 文件包含重建当前数据集所需的最少命令。具体过程是遍历所有数据库的所有键，从数据库读取键现在的值，然后用一条命令去记录键值对，代替之前记录这个键值对的多条命令。</p>
+<p>命令：有两个 Redis 命令可以用于触发 AOF 重写，一个是 BGREWRITEAOF 、另一个是 REWRITEAOF 命令；</p>
+<p>开启：AOF 重写由两个参数共同控制，auto-aof-rewrite-percentage 和 auto-aof-rewrite-min-size，同时满足这两个条件，则触发 AOF 后台重写 BGREWRITEAOF。</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">// 当前AOF文件比上次重写后的AOF文件大小的增长比例超过100 </span><br><span class="line">auto-aof-rewrite-percentage 100  </span><br><span class="line">// 当前AOF文件的文件大小大于64MB </span><br><span class="line">auto-aof-rewrite-min-size 64mb</span><br></pre></td></tr></table></figure>
+
+
+
+<p>关闭：auto-aof-rewrite-percentage 0，指定0的百分比，以禁用自动AOF重写功能。</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">auto-aof-rewrite-percentage 0</span><br></pre></td></tr></table></figure>
+
+
+
+<p>REWRITEAOF：进行 AOF 重写，但是会阻塞主进程，服务器将无法处理客户端发来的命令请求，通常不会直接使用该命令。</p>
+<p>BGREWRITEAOF：fork 子进程来进行 AOF 重写，阻塞只会发生在 fork 子进程的时候，之后主进程可以正常处理请求。</p>
+<p>REWRITEAOF 和 BGREWRITEAOF 的关系与 SAVE 和 BGSAVE 的关系类似。</p>
+<p>相关源码在 aof.c，核心方法是：rewriteAppendOnlyFile</p>
+<h2 id="AOF-后台重写存在的问题"><a href="#AOF-后台重写存在的问题" class="headerlink" title="AOF 后台重写存在的问题"></a>AOF 后台重写存在的问题</h2><p>AOF 后台重写使用子进程进行从写，解决了主进程阻塞的问题，但是仍然存在另一个问题：子进程在进行 AOF 重写期间，服务器主进程还需要继续处理命令请求，新的命令可能会对现有的数据库状态进行修改，从而使得当前的数据库状态和重写后的 AOF 文件保存的数据库状态不一致。</p>
+<h2 id="如何解决-AOF-后台重写存在的数据不一致问题"><a href="#如何解决-AOF-后台重写存在的数据不一致问题" class="headerlink" title="如何解决 AOF 后台重写存在的数据不一致问题"></a>如何解决 AOF 后台重写存在的数据不一致问题</h2><p>为了解决上述问题，Redis 引入了 AOF 重写缓冲区（aof_rewrite_buf_blocks），这个缓冲区在服务器创建子进程之后开始使用，当 Redis 服务器执行完一个写命令之后，它会同时将这个写命令追加到 AOF 缓冲区和 AOF 重写缓冲区。</p>
+<p>这样一来可以保证：</p>
+<p>1、现有 AOF 文件的处理工作会如常进行。这样即使在重写的中途发生停机，现有的 AOF 文件也还是安全的。</p>
+<p>2、从创建子进程开始，也就是 AOF 重写开始，服务器执行的所有写命令会被记录到 AOF 重写缓冲区里面。</p>
+<p>这样，当子进程完成 AOF 重写工作后，父进程会在 serverCron 中检测到子进程已经重写结束，则会执行以下工作：</p>
+<p>1、将 AOF 重写缓冲区中的所有内容写入到新 AOF 文件中，这时新 AOF 文件所保存的数据库状态将和服务器当前的数据库状态一致。</p>
+<p>2、对新的 AOF 文件进行改名，原子的覆盖现有的 AOF 文件，完成新旧两个 AOF 文件的替换。</p>
+<p>之后，父进程就可以继续像往常一样接受命令请求了。</p>
+<p>相关源码在 aof.c，核心方法是：rewriteAppendOnlyFileBackground</p>
+<h2 id="AOF-重写缓冲区内容过多怎么办"><a href="#AOF-重写缓冲区内容过多怎么办" class="headerlink" title="AOF 重写缓冲区内容过多怎么办"></a>AOF 重写缓冲区内容过多怎么办</h2><p>将 AOF 重写缓冲区的内容追加到新 AOF 文件的工作是由主进程完成的，所以这一过程会导致主进程无法处理请求，如果内容过多，可能会使得阻塞时间过长，显然是无法接受的。</p>
+<p>Redis 中已经针对这种情况进行了优化：</p>
+<p>1、在进行 AOF 后台重写时，Redis 会创建一组用于父子进程间通信的管道，同时会新增一个文件事件，该文件事件会将写入 AOF 重写缓冲区的内容通过该管道发送到子进程。</p>
+<p>2、在重写结束后，子进程会通过该管道尽量从父进程读取更多的数据，每次等待可读取事件1ms，如果一直能读取到数据，则这个过程最多执行1000次，也就是1秒。如果连续20次没有读取到数据，则结束这个过程。</p>
+<p>通过这些优化，Redis 尽量让 AOF 重写缓冲区的内容更少，以减少主进程阻塞的时间。</p>
+<p>到此，AOF 后台重写的核心内容基本告一段落，通过一张图来看下其完整流程。</p>
+<img src="/2023/05/24/Redis%E6%95%99%E7%A8%8B%EF%BC%9ARedis-%E6%8C%81%E4%B9%85%E5%8C%96/05/24/Redis%E6%95%99%E7%A8%8B%EF%BC%9ARedis-%E6%8C%81%E4%B9%85%E5%8C%96/v2-c860405f0c426655102ad1294caebbc2_720w.webp" class title="img">
+
+
+
+<p>相关源码在 aof.c，核心方法是：aofCreatePipes、aofChildWriteDiffData、rewriteAppendOnlyFile</p>
+<h2 id="RDB、AOF、混合持久，我应该用哪一个？"><a href="#RDB、AOF、混合持久，我应该用哪一个？" class="headerlink" title="RDB、AOF、混合持久，我应该用哪一个？"></a>RDB、AOF、混合持久，我应该用哪一个？</h2><p>一般来说， 如果想尽量保证数据安全性， 你应该同时使用 RDB 和 AOF 持久化功能，同时可以开启混合持久化。</p>
+<p>如果你非常关心你的数据， 但仍然可以承受数分钟以内的数据丢失， 那么你可以只使用 RDB 持久化。</p>
+<p>如果你的数据是可以丢失的，则可以关闭持久化功能，在这种情况下，Redis 的性能是最高的。</p>
+<p>使用 Redis 通常都是为了提升性能，而如果为了不丢失数据而将 appendfsync 设置为 always 级别时，对 Redis 的性能影响是很大的，在这种不能接受数据丢失的场景，其实可以考虑直接选择 MySQL 等类似的数据库。</p>
+<h2 id="服务启动时如何加载持久化数据"><a href="#服务启动时如何加载持久化数据" class="headerlink" title="服务启动时如何加载持久化数据"></a>服务启动时如何加载持久化数据</h2><p>简单来说，如果同时启用了 AOF 和 RDB，Redis 重新启动时，会使用 AOF 文件来重建数据集，因为通常来说， AOF 的数据会更完整。</p>
+<p>而在引入了混合持久化之后，使用 AOF 重建数据集时，会通过文件开头是否为“REDIS”来判断是否为混合持久化。</p>
+<p>完整流程如下图所示：</p>
+<img src="/2023/05/24/Redis%E6%95%99%E7%A8%8B%EF%BC%9ARedis-%E6%8C%81%E4%B9%85%E5%8C%96/05/24/Redis%E6%95%99%E7%A8%8B%EF%BC%9ARedis-%E6%8C%81%E4%B9%85%E5%8C%96/v2-fc88a7b32d3394a14a0d50a72318694e_720w.webp" class title="img">
+
+
+
+<p>相关源码在 server.c，核心方法是：loadDataFromDisk</p>
+
+    </div>
+
+    
+    
+    
+        <div class="reward-container">
+  <div>感谢大佬的打赏，我会继续努力哒！</div>
+  <button onclick="var qr = document.getElementById('qr'); qr.style.display = (qr.style.display === 'none') ? 'block' : 'none';">
+    Donate
+  </button>
+  <div id="qr" style="display: none;">
+      
+      <div style="display: inline-block;">
+        <img src="/images/vx-pay.jpg" alt="EthanWhite-Chen WeChat Pay">
+        <p>WeChat Pay</p>
+      </div>
+      
+      <div style="display: inline-block;">
+        <img src="/images/zfb-pay.jpg" alt="EthanWhite-Chen Alipay">
+        <p>Alipay</p>
+      </div>
+
+  </div>
+</div>
+
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/java/" rel="tag"># java</a>
+              <a href="/tags/redis%E6%8C%81%E4%B9%85%E5%8C%96/" rel="tag"># redis持久化</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2023/05/24/MQ%E9%9D%A2%E8%AF%95%E9%97%AE%E9%A2%98%E4%B8%89%E8%BF%9E%EF%BC%9A%E5%A6%82%E4%BD%95%E8%A7%A3%E5%86%B3%E6%B6%88%E6%81%AF%E4%B8%8D%E4%B8%A2%E5%A4%B1%E3%80%81%E9%87%8D%E5%A4%8D%E6%B6%88%E8%B4%B9%E3%80%81%E7%A7%AF%E5%8E%8B%EF%BC%9F/" rel="prev" title="MQ面试问题三连：如何解决消息不丢失、重复消费、积压？">
+      <i class="fa fa-chevron-left"></i> MQ面试问题三连：如何解决消息不丢失、重复消费、积压？
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2023/05/24/%E5%A6%82%E4%BD%95%E4%BF%9D%E8%AF%81-redis-%E7%9A%84%E9%AB%98%E5%B9%B6%E5%8F%91%E5%92%8C%E9%AB%98%E5%8F%AF%E7%94%A8%EF%BC%9F/" rel="next" title="如何保证 redis 的高并发和高可用？">
+      如何保证 redis 的高并发和高可用？ <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#RDB%E5%BF%AB%E7%85%A7"><span class="nav-number">1.</span> <span class="nav-text">RDB快照</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%BD%95%E6%97%B6%E6%89%A7%E8%A1%8C%E5%BF%AB%E7%85%A7"><span class="nav-number">1.1.</span> <span class="nav-text">何时执行快照</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%BF%AB%E7%85%A7%E7%9A%84%E9%85%8D%E7%BD%AE%E4%BF%A1%E6%81%AF"><span class="nav-number">1.2.</span> <span class="nav-text">快照的配置信息</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%B7%A5%E4%BD%9C%E6%96%B9%E5%BC%8F"><span class="nav-number">1.3.</span> <span class="nav-text">工作方式</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%8F%AA%E8%BF%BD%E5%8A%A0%E6%93%8D%E4%BD%9C%E7%9A%84%E6%96%87%E4%BB%B6%EF%BC%88Append-only-%EF%AC%81le%EF%BC%8CAOF"><span class="nav-number">2.</span> <span class="nav-text">只追加操作的文件（Append-only ﬁle，AOF)</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%97%A5%E5%BF%97%E9%87%8D%E5%86%99"><span class="nav-number">2.1.</span> <span class="nav-text">日志重写</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#AOF%E6%9C%89%E5%A4%9A%E8%80%90%E7%94%A8"><span class="nav-number">2.2.</span> <span class="nav-text">AOF有多耐用</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#AOF%E9%87%8D%E5%86%99"><span class="nav-number">2.3.</span> <span class="nav-text">AOF重写</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#AOF-%E9%87%8D%E5%86%99%E6%8E%A7%E5%88%B6%E4%B8%8E%E8%AF%A6%E8%A7%A3"><span class="nav-number">2.4.</span> <span class="nav-text">AOF 重写控制与详解</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#AOF-%E5%90%8E%E5%8F%B0%E9%87%8D%E5%86%99%E5%AD%98%E5%9C%A8%E7%9A%84%E9%97%AE%E9%A2%98"><span class="nav-number">2.5.</span> <span class="nav-text">AOF 后台重写存在的问题</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%A6%82%E4%BD%95%E8%A7%A3%E5%86%B3-AOF-%E5%90%8E%E5%8F%B0%E9%87%8D%E5%86%99%E5%AD%98%E5%9C%A8%E7%9A%84%E6%95%B0%E6%8D%AE%E4%B8%8D%E4%B8%80%E8%87%B4%E9%97%AE%E9%A2%98"><span class="nav-number">2.6.</span> <span class="nav-text">如何解决 AOF 后台重写存在的数据不一致问题</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#AOF-%E9%87%8D%E5%86%99%E7%BC%93%E5%86%B2%E5%8C%BA%E5%86%85%E5%AE%B9%E8%BF%87%E5%A4%9A%E6%80%8E%E4%B9%88%E5%8A%9E"><span class="nav-number">2.7.</span> <span class="nav-text">AOF 重写缓冲区内容过多怎么办</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#RDB%E3%80%81AOF%E3%80%81%E6%B7%B7%E5%90%88%E6%8C%81%E4%B9%85%EF%BC%8C%E6%88%91%E5%BA%94%E8%AF%A5%E7%94%A8%E5%93%AA%E4%B8%80%E4%B8%AA%EF%BC%9F"><span class="nav-number">2.8.</span> <span class="nav-text">RDB、AOF、混合持久，我应该用哪一个？</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%9C%8D%E5%8A%A1%E5%90%AF%E5%8A%A8%E6%97%B6%E5%A6%82%E4%BD%95%E5%8A%A0%E8%BD%BD%E6%8C%81%E4%B9%85%E5%8C%96%E6%95%B0%E6%8D%AE"><span class="nav-number">2.9.</span> <span class="nav-text">服务启动时如何加载持久化数据</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">EthanWhite-Chen</p>
+  <div class="site-description" itemprop="description">不积跬步无以至千里，不积小流无以成江河。分享点滴成长，就有光明未来！</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">22</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">32</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/ethanwhite-chen" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;ethanwhite-chen" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="/ykchen998@foxmail.com" title="E-Mail → ykchen998@foxmail.com"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">EthanWhite-Chen</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-chart-area"></i>
+    </span>
+    <span title="Symbols count total">152k</span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item-icon">
+      <i class="fa fa-coffee"></i>
+    </span>
+    <span title="Reading time total">4:36</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://muse.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
