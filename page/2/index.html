@@ -193,6 +193,478 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://ethanwhite-chen.github.io/2023/05/23/%E8%AF%B4%E2%BC%80%E4%B8%8BJVM%E4%B8%AD%EF%BC%8C%E5%93%AA%E4%BA%9B%E6%98%AF%E5%85%B1%E4%BA%AB%E5%8C%BA%EF%BC%8C%E5%93%AA%E4%BA%9B%E5%8F%AF%E4%BB%A5%E4%BD%9C%E4%B8%BAgc-root/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="EthanWhite-Chen">
+      <meta itemprop="description" content="不积跬步无以至千里，不积小流无以成江河。分享点滴成长，就有光明未来！">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="ykchen的个人博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/05/23/%E8%AF%B4%E2%BC%80%E4%B8%8BJVM%E4%B8%AD%EF%BC%8C%E5%93%AA%E4%BA%9B%E6%98%AF%E5%85%B1%E4%BA%AB%E5%8C%BA%EF%BC%8C%E5%93%AA%E4%BA%9B%E5%8F%AF%E4%BB%A5%E4%BD%9C%E4%B8%BAgc-root/" class="post-title-link" itemprop="url">说⼀下JVM中，哪些是共享区，哪些可以作为gc root</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2023-05-23 18:24:58 / Modified: 18:44:28" itemprop="dateCreated datePublished" datetime="2023-05-23T18:24:58+08:00">2023-05-23</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E9%9D%A2%E8%AF%95%E9%A2%98%E7%9B%AE/" itemprop="url" rel="index"><span itemprop="name">面试题目</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="Symbols count in article">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">Symbols count in article: </span>
+              <span>2.3k</span>
+            </span>
+            <span class="post-meta-item" title="Reading time">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">Reading time &asymp;</span>
+              <span>4 mins.</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="1-堆区和⽅法区是所有线程共享的，栈、本地⽅法栈、程序计数器是每个线程独有的"><a href="#1-堆区和⽅法区是所有线程共享的，栈、本地⽅法栈、程序计数器是每个线程独有的" class="headerlink" title="1.堆区和⽅法区是所有线程共享的，栈、本地⽅法栈、程序计数器是每个线程独有的"></a>1.堆区和⽅法区是所有线程共享的，栈、本地⽅法栈、程序计数器是每个线程独有的</h1><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">堆区和⽅法区是所有线程共享的，栈、本地⽅法栈、程序计数器是每个线程独有的</span><br><span class="line">堆: 不用多说了,放对象的地方</span><br><span class="line">方法区: 类定义的成员变量丶常量丶静态变量丶方法都在这里</span><br><span class="line">栈: 程序运行才有的,会把运行时的方法压入栈,里面有局部变量等东西</span><br><span class="line">本地方法栈: 操作系统方法</span><br><span class="line">程序计数器: 标记代码走到哪里了</span><br></pre></td></tr></table></figure>
+
+
+
+
+<img src="/2023/05/23/%E8%AF%B4%E2%BC%80%E4%B8%8BJVM%E4%B8%AD%EF%BC%8C%E5%93%AA%E4%BA%9B%E6%98%AF%E5%85%B1%E4%BA%AB%E5%8C%BA%EF%BC%8C%E5%93%AA%E4%BA%9B%E5%8F%AF%E4%BB%A5%E4%BD%9C%E4%B8%BAgc-root/05/23/%E8%AF%B4%E2%BC%80%E4%B8%8BJVM%E4%B8%AD%EF%BC%8C%E5%93%AA%E4%BA%9B%E6%98%AF%E5%85%B1%E4%BA%AB%E5%8C%BA%EF%BC%8C%E5%93%AA%E4%BA%9B%E5%8F%AF%E4%BB%A5%E4%BD%9C%E4%B8%BAgc-root/94d2022bc0284ef291f54f1b1a48bd65.png" class title="img">
+
+<h1 id="2、什么是gc-root"><a href="#2、什么是gc-root" class="headerlink" title="2、什么是gc root"></a>2、什么是gc root</h1><p>JVM在进⾏垃圾回收时，需要找到“垃圾”对象，也就是没有被引⽤的对象，但是直接<br>找“垃圾”对象是⽐较耗时的，所以反过来，先找“⾮垃圾”对象，也就是正常对象，那么就需要从某<br>些“根”开始去找，根据这些“根”的引⽤路径找到正常对象，⽽这些“根”有⼀个特征，就是它只会引⽤其他<br>对象，⽽不会被其他对象引⽤，例如：栈中的本地变量、⽅法区中的静态变量、本地⽅法栈中的变量、正<br>在运⾏的线程等可以作为gc root。</p>
+<p><strong>什么是是可达性分析算法？</strong></p>
+<p>现代虚拟机基本都是采用可达性分析算法来判断对象是否存活，可达性算法的原理是以一系列叫做  <strong>GC Root</strong> 的对象为起点出发，引出它们指向的下一个节点，再以下个节点为起点，引出此节点指向的下一个结点。这样通过 GC Root 串成的一条线就叫引用链），直到所有的结点都遍历完毕,如果相关对象不在任意一个以 <strong>GC Root</strong> 为起点的引用链中，则这些对象会被判断为垃圾对象,会被 GC 回收。</p>
+<img src="/2023/05/23/%E8%AF%B4%E2%BC%80%E4%B8%8BJVM%E4%B8%AD%EF%BC%8C%E5%93%AA%E4%BA%9B%E6%98%AF%E5%85%B1%E4%BA%AB%E5%8C%BA%EF%BC%8C%E5%93%AA%E4%BA%9B%E5%8F%AF%E4%BB%A5%E4%BD%9C%E4%B8%BAgc-root/05/23/%E8%AF%B4%E2%BC%80%E4%B8%8BJVM%E4%B8%AD%EF%BC%8C%E5%93%AA%E4%BA%9B%E6%98%AF%E5%85%B1%E4%BA%AB%E5%8C%BA%EF%BC%8C%E5%93%AA%E4%BA%9B%E5%8F%AF%E4%BB%A5%E4%BD%9C%E4%B8%BAgc-root/aHR0cHM6Ly9tbWJpei5xcGljLmNuL21tYml6X3BuZy9PeXdleXNDU2VMVXJZcVBpY2pWd2p1TUNoUHJQaWNOSGRYdlpMbXg5SGRlTmliUlFqbkZad1VCRlhUUTZtSnk3OWFqeDRCZHFGTWljSWlhVzRCTlFhR1RaV2liZy82NDA" class title="img">
+
+<p>如图示，如果用可达性算法即可解决上述循环引用的问题，因为从<strong>GC Root</strong> 出发没有到达 a,b,所以 a，b 可回收。</p>
+<p><strong>a, b 对象可回收，就一定会被回收吗?</strong></p>
+<p>并不是，对象的 finalize 方法给了对象一次垂死挣扎的机会，当对象不可达（可回收）时，当发生GC时，会先判断对象是否执行了 finalize 方法，如果未执行，则会先执行 finalize 方法，我们可以在此方法里将当前对象与 GC Roots 关联，这样执行 finalize 方法之后，GC 会再次判断对象是否可达，如果不可达，则会被回收，如果可达，则不回收！</p>
+<p><strong>注意：</strong> finalize 方法只会被执行一次，如果第一次执行 finalize 方法此对象变成了可达确实不会回收，但如果对象再次被 GC，则会忽略 finalize 方法，对象会被回收！这一点切记!</p>
+<p><strong>GC Roots 到底是什么东西呢，哪些对象可以作为 GC Root 呢？</strong></p>
+<ul>
+<li><p>虚拟机栈（栈帧中的本地变量表）中引用的对象</p>
+</li>
+<li><p>本地方法栈中 JNI（即一般说的 Native 方法）引用的对象</p>
+</li>
+<li><p>方法区中类静态属性引用的对象</p>
+</li>
+<li><p>方法区中常量引用的对象</p>
+</li>
+<li><p>便于记忆，称他为两栈两方法！下面我们一一介绍一下：</p>
+<p>1、虚拟机栈中引用的对象</p>
+<p>如下代码所示，a 是栈帧中的本地变量，当 a &#x3D; null 时，由于此时 a 充当了 <strong>GC Root</strong> 的作用，a 与原来指向的实例 <strong>new Test()</strong> 断开了连接，所以对象会被回收。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">publicclass Test &#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span>  <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> &#123;</span><br><span class="line"></span><br><span class="line">	<span class="type">Test</span> <span class="variable">a</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Test</span>();</span><br><span class="line"></span><br><span class="line">	a = <span class="literal">null</span>;</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>2、方法区中类静态属性引用的对象</p>
+<p>如下代码所示，当栈帧中的本地变量 a &#x3D; null 时，由于 a 原来指向的对象与 GC Root (变量 a) 断开了连接，所以 a 原来指向的对象会被回收，而由于我们给 s 赋值了变量的引用，s 在此时是类静态属性引用，充当了 GC Root 的作用，它指向的对象依然存活!</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">Test</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> Test s;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span>  <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> &#123;</span><br><span class="line">	<span class="type">Test</span> <span class="variable">a</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Test</span>();</span><br><span class="line">	a.s = <span class="keyword">new</span> <span class="title class_">Test</span>();</span><br><span class="line">	a = <span class="literal">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>3、方法区中常量引用的对象</p>
+<p>如下代码所示，常量 s 指向的对象并不会因为 a 指向的对象被回收而回收</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">Test</span> &#123;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="type">Test</span> <span class="variable">s</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Test</span>();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> &#123;</span><br><span class="line">	    <span class="type">Test</span> <span class="variable">a</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Test</span>();</span><br><span class="line">	    a = <span class="literal">null</span>;</span><br><span class="line">        &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>4、本地方法栈中 JNI 引用的对象</p>
+<p>这是简单给不清楚本地方法为何物的童鞋简单解释一下：所谓本地方法就是一个 java 调用非 java 代码的接口，该方法并非 Java 实现的，可能由 C 或 Python等其他语言实现的， Java 通过 JNI 来调用本地方法， 而本地方法是以库文件的形式存放的（在 WINDOWS 平台上是 DLL 文件形式，在 UNIX 机器上是 SO 文件形式）。通过调用本地的库文件的内部方法，使 JAVA 可以实现和本地机器的紧密联系，调用系统级的各接口方法，还是不明白？见文末参考，对本地方法定义与使用有详细介绍。</p>
+<p>当调用 Java 方法时，虚拟机会创建一个栈桢并压入 Java 栈，而当它调用的是本地方法时，虚拟机会保持 Java 栈不变，不会在 Java 栈祯中压入新的祯，虚拟机只是简单地动态连接并直接调用指定的本地方法。</p>
+<img src="/2023/05/23/%E8%AF%B4%E2%BC%80%E4%B8%8BJVM%E4%B8%AD%EF%BC%8C%E5%93%AA%E4%BA%9B%E6%98%AF%E5%85%B1%E4%BA%AB%E5%8C%BA%EF%BC%8C%E5%93%AA%E4%BA%9B%E5%8F%AF%E4%BB%A5%E4%BD%9C%E4%B8%BAgc-root/05/23/%E8%AF%B4%E2%BC%80%E4%B8%8BJVM%E4%B8%AD%EF%BC%8C%E5%93%AA%E4%BA%9B%E6%98%AF%E5%85%B1%E4%BA%AB%E5%8C%BA%EF%BC%8C%E5%93%AA%E4%BA%9B%E5%8F%AF%E4%BB%A5%E4%BD%9C%E4%B8%BAgc-root/aHR0cHM6Ly9tbWJpei5xcGljLmNuL21tYml6X3BuZy9PeXdleXNDU2VMVXJZcVBpY2pWd2p1TUNoUHJQaWNOSGRYdWhiZDlIQ0xCSVlSQmVrUXFpY3M3WEJyajB2VlVWU1BUSFRpYkpidXRyZEdSV2liMU1sRGQxNkpRLzY0MA" class title="img">
+
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">JNIEXPORT void JNICALL Java_com_pecuyu_jnirefdemo_MainActivity_newStringNative(JNIEnv *env, jobject instance，jstring jmsg) &#123;</span><br><span class="line"></span><br><span class="line">...</span><br><span class="line"></span><br><span class="line">   // 缓存String的class</span><br><span class="line"></span><br><span class="line">   jclass jc = (*env)-&gt;FindClass(env, STRING_PATH);</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>如上代码所示，当 java 调用以上本地方法时，jc 会被本地方法栈压入栈中, jc 就是我们说的本地方法栈中 JNI 的对象引用，因此只会在此本地方法执行完成后才会被释放。</p>
+</li>
+</ul>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://ethanwhite-chen.github.io/2023/05/23/%E4%BD%A0%E4%BB%AC%E9%A1%B9%E7%9B%AE%E5%A6%82%E4%BD%95%E6%8E%92%E6%9F%A5JVM%E9%97%AE%E9%A2%98/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="EthanWhite-Chen">
+      <meta itemprop="description" content="不积跬步无以至千里，不积小流无以成江河。分享点滴成长，就有光明未来！">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="ykchen的个人博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/05/23/%E4%BD%A0%E4%BB%AC%E9%A1%B9%E7%9B%AE%E5%A6%82%E4%BD%95%E6%8E%92%E6%9F%A5JVM%E9%97%AE%E9%A2%98/" class="post-title-link" itemprop="url">你们项目如何排查JVM问题</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2023-05-23 17:31:35 / Modified: 18:23:39" itemprop="dateCreated datePublished" datetime="2023-05-23T17:31:35+08:00">2023-05-23</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E9%9D%A2%E8%AF%95%E9%A2%98%E7%9B%AE/" itemprop="url" rel="index"><span itemprop="name">面试题目</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="Symbols count in article">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">Symbols count in article: </span>
+              <span>8.5k</span>
+            </span>
+            <span class="post-meta-item" title="Reading time">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">Reading time &asymp;</span>
+              <span>16 mins.</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h1 id="一、对于还在正常运行的系统"><a href="#一、对于还在正常运行的系统" class="headerlink" title="一、对于还在正常运行的系统"></a>一、对于还在正常运行的系统</h1><p>1、可以使用jmap来查看JVM中各个区域的使用情况。</p>
+<p>2、可以通过jstack来查看线程的运行情况，比如哪些线程阻塞、是否出现了死锁。</p>
+<p>3、可以通过jstat命令来查看垃圾回收的情况，特别是fullgc比较频繁，那么就得进行调优了。</p>
+<p>4、通过各个命令的结果，或者jvisualvm等工具来进行分析。</p>
+<p>5、首先，初步猜测频繁fullgc的原因，如果频繁发生fullgc但是又一直没有出现内存溢出，那么表示fullgc实际上是回收了很多对象，所以这些对象最好能在younggc过程中直接回收掉，避免这些对象进入到老年代，对于这种情况，就要考虑这些存活时间不长的对象是不是比较大，导致年轻代放不下，直接进入到老年代，尝试加大年轻代的大小，如果改完之后，fullgc减小，则说明修改有效。</p>
+<p>6、同时，还可以找到占用CPU最多的线程，定位到具体的方法，优化这个方法的执行，看是否能避免某些对象的创建，从而节省内存。</p>
+<h1 id="二、对于已经发生了OOM的系统"><a href="#二、对于已经发生了OOM的系统" class="headerlink" title="二、对于已经发生了OOM的系统"></a>二、对于已经发生了OOM的系统</h1><p>1、一般生产系统中都会设置当系统发生了OOM时，生成当时的dump文件（-XX:+HeadDumpOnOutOfMemoryError -XX:HeadDumpPath&#x3D;&#x2F;usr&#x2F;local&#x2F;base）</p>
+<p>2、我们可以利用jsisualvm等工具来分析dump文件</p>
+<p>3、根据dump文件找到异常的实例对象，和异常的线程（占用CPU高），定位到具体的代码</p>
+<p>4、然后再进行详细的分析和调试</p>
+<h1 id="JVM-究竟需不需要调优？"><a href="#JVM-究竟需不需要调优？" class="headerlink" title="JVM 究竟需不需要调优？"></a>JVM 究竟需不需要调优？</h1><p>JVM 经过这么多年的发展和验证，整体是非常健壮的。个人认为99%的情况下，基本用不到 JVM 调优。</p>
+<p>通常来说，我们的 JVM 参数配置大多还是会遵循 JVM 官方的建议，例如：</p>
+<ul>
+<li>-XX:NewRatio&#x3D;2，年轻代:老年代&#x3D;1:2</li>
+<li>-XX:SurvivorRatio&#x3D;8，eden:survivor&#x3D;8:1</li>
+<li>堆内存设置为物理内存的3&#x2F;4左右</li>
+<li>等等</li>
+</ul>
+<p>JVM 参数的默认（推荐）值都是经过 JVM 团队的反复测试和前人的充分验证得出的比较合理的值，因此通常来说是比较靠谱和通用的，一般不会出大问题。</p>
+<p>当然，更重要的是，大部分的应用 QPS 都不到10，数据量不到几万，这种低压环境下，想让 JVM 出问题，说实话也挺难的。</p>
+<img src="/2023/05/23/%E4%BD%A0%E4%BB%AC%E9%A1%B9%E7%9B%AE%E5%A6%82%E4%BD%95%E6%8E%92%E6%9F%A5JVM%E9%97%AE%E9%A2%98/05/23/%E4%BD%A0%E4%BB%AC%E9%A1%B9%E7%9B%AE%E5%A6%82%E4%BD%95%E6%8E%92%E6%9F%A5JVM%E9%97%AE%E9%A2%98/v2-f983ea90573f9499a401b09a639a4325_720w.webp" class title="img">
+
+<p>大部分同学更常遇到的应该是自己的代码 bug 导致 OOM、CPU load高、GC频繁啥的，这些场景也基本都是代码修复即可，通常不需要动 JVM。</p>
+<p>当然，俗话说得好，凡事无绝对，还是有一小部分场景，是可能需要用到 JVM 调优的。具体哪些场景，我们在下面介绍。</p>
+<p>值得一提的是，我们这边所说的 JVM 调优更多的是针对自己的业务场景对 JVM 参数进行优化调整，使其更适合我们的业务，而不是指对 JVM 源码的改动。</p>
+<h1 id="JVM-调优没有什么必要，使用性能更好的垃圾回收器就能解决问题了？"><a href="#JVM-调优没有什么必要，使用性能更好的垃圾回收器就能解决问题了？" class="headerlink" title="JVM 调优没有什么必要，使用性能更好的垃圾回收器就能解决问题了？**"></a>JVM 调优没有什么必要，使用性能更好的垃圾回收器就能解决问题了？**</h1><p>这是我在网上看到的一个说法，因为赞同的人比较多，我估计有不少同学也会有这个想法，因此在这边谈下自己的看法。</p>
+<p><strong>1）实战角度</strong></p>
+<p>不考虑应付面试的因素，升级垃圾回收器确实会是最有效的方式之一，例如：CMS 升级到 G1，甚至 ZGC。</p>
+<p>这个很容易理解，更高版本的垃圾回收器相当于是 JVM 开发人员对 JVM 做的优化，人家毕竟是专门做这个的，所以通常来说升级高版本的性能会有不少的提升。</p>
+<p>G1 目前已经有开始在逐渐应用开来，周围有不少团队在 JDK8 中使用了 G1，就我了解到的，还是存在不少问题的，不少同学在不断进行参数的调整，而在 JDK11 中能优化成啥样还有待验证。</p>
+<p>ZGC 目前应用的还比较少，仅从对外公布的数据来看很好看，最大暂停时间不超过10ms，甚至是1ms，大家都抱有很高的期望。但是从目前我收集到的一些资料来看，ZGC 也并不是银弹，已知的明显问题有：</p>
+<ul>
+<li>吞吐量相较于 G1 会有所下降，官方称最大不超过15%</li>
+<li>ZGC如果遇到非常高的对象分配速率（allocation rate）的话会跟不上，目前唯一有效的“调优”方式就是增大整个GC堆的大小来让ZGC有更大的喘息空间——R大与ZGC领队沟通后的原话</li>
+</ul>
+<p>而且，随着后续 ZGC 应用开来，后续一定会不断出现更多问题的。</p>
+<p>整体而言，个人觉得 JVM 调优在某些场景下还是有必要的，毕竟有句话叫：没有最好的，只有最合适的。</p>
+<p><strong>2）面试角度</strong></p>
+<p>如果你回答直接升级垃圾收集器，面试官可能也赞同，但是这个话题可能就这样结束了，面试官大概率没听到他想要的回答，你在这题的肯定拿不到加分，甚至可能会被扣分。</p>
+<p>所以，在面试的时候，你可以回答升级垃圾收集器，但是你不能只回答升级垃圾收集器。</p>
+<h1 id="JVM-何时优化？"><a href="#JVM-何时优化？" class="headerlink" title="JVM 何时优化？"></a>JVM 何时优化？</h1><p>忌过早优化。《计算机程序设计艺术》的作者高德纳（Donald Ervin Knuth）曾说过一句经典的话：</p>
+<blockquote>
+<p>The real problem is that programmers have spent far too much time worrying about efficiency in the wrong places and at the wrong times; premature optimization is the root of all evil (or at least most of it) in programming.<br>真正的问题是，程序猿在错误的地方和错误的时间花了太多的时间担心效率问题；过早的优化是编程中所有（或者至少是大部分）罪恶的根源。</p>
+</blockquote>
+<p>忌过早并不是说就完全不管，比较正确的做法应该是给核心服务的一些重要 JVM 指标配上监控告警，当指标出现波动或者异常时，能及时介入排查。</p>
+<p><strong>面试官：JVM 有哪些核心指标？合理范围应该是多少？</strong></p>
+<p>这个问题没有统一的答案，因为每个服务对AVG&#x2F;TP999&#x2F;TP9999等性能指标的要求是不同的，因此合理的范围也不同。</p>
+<p>为了防止面试官追问，对于普通的 Java 后端应用来说，我这边给出一份相对合理的范围值。以下指标都是对于单台服务器来说：</p>
+<ul>
+<li>jvm.gc.time：每分钟的GC耗时在1s以内，500ms以内尤佳</li>
+<li>jvm.gc.meantime：每次YGC耗时在100ms以内，50ms以内尤佳</li>
+<li>jvm.fullgc.count：FGC最多几小时1次，1天不到1次尤佳</li>
+<li>jvm.fullgc.time：每次FGC耗时在1s以内，500ms以内尤佳</li>
+</ul>
+<p>通常来说，只要这几个指标正常，其他的一般不会有问题，如果其他地方出了问题，一般都会影响到这几个指标。</p>
+<h1 id="JVM-优化步骤？"><a href="#JVM-优化步骤？" class="headerlink" title="JVM 优化步骤？"></a>JVM 优化步骤？</h1><p><strong>4.1、分析和定位当前系统的瓶颈</strong></p>
+<p>对于JVM的核心指标，我们的关注点和常用工具如下：</p>
+<p><strong>1）CPU指标</strong></p>
+<ul>
+<li>查看占用CPU最多的进程</li>
+<li>查看占用CPU最多的线程</li>
+<li>查看线程堆栈快照信息</li>
+<li>分析代码执行热点</li>
+<li>查看哪个代码占用CPU执行时间最长</li>
+<li>查看每个方法占用CPU时间比例</li>
+</ul>
+<p>常见的命令：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">// 显示系统各个进程的资源使用情况</span><br><span class="line">top</span><br><span class="line">// 查看某个进程中的线程占用情况</span><br><span class="line">top -Hp pid</span><br><span class="line">// 查看当前 Java 进程的线程堆栈信息</span><br><span class="line">jstack pid</span><br></pre></td></tr></table></figure>
+
+<p>常见的工具：JProfiler、JVM Profiler、Arthas等。</p>
+<p><strong>2）JVM 内存指标</strong></p>
+<ul>
+<li>查看当前 JVM 堆内存参数配置是否合理</li>
+<li>查看堆中对象的统计信息</li>
+<li>查看堆存储快照，分析内存的占用情况</li>
+<li>查看堆各区域的内存增长是否正常</li>
+<li>查看是哪个区域导致的GC</li>
+<li>查看GC后能否正常回收到内存</li>
+</ul>
+<p>常见的命令：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">// 查看当前的 JVM 参数配置</span><br><span class="line">ps -ef | grep java</span><br><span class="line">// 查看 Java 进程的配置信息，包括系统属性和JVM命令行标志</span><br><span class="line">jinfo pid</span><br><span class="line">// 输出 Java 进程当前的 gc 情况</span><br><span class="line">jstat -gc pid</span><br><span class="line">// 输出 Java 堆详细信息</span><br><span class="line">jmap -heap pid</span><br><span class="line">// 显示堆中对象的统计信息</span><br><span class="line">jmap -histo:live pid</span><br><span class="line">// 生成 Java 堆存储快照dump文件</span><br><span class="line">jmap -F -dump:format=b,file=dumpFile.phrof pid</span><br></pre></td></tr></table></figure>
+
+<p>常见的工具：Eclipse MAT、JConsole等。</p>
+<p><strong>3）JVM GC指标</strong></p>
+<ul>
+<li>查看每分钟GC时间是否正常</li>
+<li>查看每分钟YGC次数是否正常</li>
+<li>查看FGC次数是否正常</li>
+<li>查看单次FGC时间是否正常</li>
+<li>查看单次GC各阶段详细耗时，找到耗时严重的阶段</li>
+<li>查看对象的动态晋升年龄是否正常</li>
+</ul>
+<p>JVM 的 GC指标一般是从 GC 日志里面查看，默认的 GC 日志可能比较少，我们可以添加以下参数，来丰富我们的GC日志输出，方便我们定位问题。</p>
+<p>GC日志常用 JVM 参数：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">// 打印GC的详细信息</span><br><span class="line">-XX:+PrintGCDetails</span><br><span class="line">// 打印GC的时间戳</span><br><span class="line">-XX:+PrintGCDateStamps</span><br><span class="line">// 在GC前后打印堆信息</span><br><span class="line">-XX:+PrintHeapAtGC</span><br><span class="line">// 打印Survivor区中各个年龄段的对象的分布信息</span><br><span class="line">-XX:+PrintTenuringDistribution</span><br><span class="line">// JVM启动时输出所有参数值，方便查看参数是否被覆盖</span><br><span class="line">-XX:+PrintFlagsFinal</span><br><span class="line">// 打印GC时应用程序的停止时间</span><br><span class="line">-XX:+PrintGCApplicationStoppedTime</span><br><span class="line">// 打印在GC期间处理引用对象的时间（仅在PrintGCDetails时启用）</span><br><span class="line">-XX:+PrintReferenceGC</span><br></pre></td></tr></table></figure>
+
+<p>以上就是我们定位系统瓶颈的常用手段，大部分问题通过以上方式都能定位出问题原因，然后结合代码去找到问题根源。</p>
+<p><strong>4.2、确定优化目标</strong></p>
+<p>定位出系统瓶颈后，在优化前先制定好优化的目标是什么，例如：</p>
+<ul>
+<li>将FGC次数从每小时1次，降低到1天1次</li>
+<li>将每分钟的GC耗时从3s降低到500ms</li>
+<li>将每次FGC耗时从5s降低到1s以内</li>
+<li>…</li>
+</ul>
+<p><strong>4.3、制订优化方案</strong></p>
+<p>针对定位出的系统瓶颈制定相应的优化方案，常见的有：</p>
+<ul>
+<li>代码bug：升级修复bug。典型的有：死循环、使用无界队列。</li>
+<li>不合理的JVM参数配置：优化 JVM 参数配置。典型的有：年轻代内存配置过小、堆内存配置过小、元空间配置过小。</li>
+</ul>
+<p><strong>4.4、对比优化前后的指标，统计优化效果</strong></p>
+<p><strong>4.5、持续观察和跟踪优化效果</strong></p>
+<p><strong>4.6、如果还需要的话，重复以上步骤</strong></p>
+<h1 id="调优案例：metaspace导致频繁FGC问题"><a href="#调优案例：metaspace导致频繁FGC问题" class="headerlink" title="调优案例：metaspace导致频繁FGC问题"></a>调优案例：metaspace导致频繁FGC问题</h1><p>以下案例来源于网络或本人真实经验，皆能自圆其说，理解掌握后同学们皆可拿来与面试官对线。</p>
+<p><strong>服务环境：</strong>ParNew + CMS + JDK8</p>
+<p><strong>问题现象</strong>：服务频繁出现FGC</p>
+<p><strong>原因分析</strong>：</p>
+<p>1）首先查看GC日志，发现出现FGC的原因是metaspace空间不够</p>
+<p>对应GC日志：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Full GC (Metadata GC Threshold)</span><br></pre></td></tr></table></figure>
+
+<p>2）进一步查看日志发现元空间存在内存碎片化现象</p>
+<p>对应GC日志：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Metaspace       used 35337K, capacity 56242K, committed 56320K, reserved 1099776K</span><br></pre></td></tr></table></figure>
+
+<p>这边简单解释下这几个参数的意义</p>
+<ul>
+<li>used ：已使用的空间大小</li>
+<li>capacity：当前已经分配且未释放的空间容量大小</li>
+<li>committed：当前已经分配的空间大小</li>
+<li>reserved：预留的空间大小</li>
+</ul>
+<p>这边 used 比较容易理解，reserved 在本例不重要可以先忽略，主要是 capacity 和 committed 这2个容易搞混。</p>
+<p>结合下图来看更容易理解，元空间的分配以 chunk 为单位，当一个 ClassLoader 被垃圾回收时，所有属于它的空间（chunk）被释放，此时该 chunk 称为 Free Chunk，而 committed chunk 就是 capacity chunk 和 free chunk 之和。</p>
+<img src="/2023/05/23/%E4%BD%A0%E4%BB%AC%E9%A1%B9%E7%9B%AE%E5%A6%82%E4%BD%95%E6%8E%92%E6%9F%A5JVM%E9%97%AE%E9%A2%98/05/23/%E4%BD%A0%E4%BB%AC%E9%A1%B9%E7%9B%AE%E5%A6%82%E4%BD%95%E6%8E%92%E6%9F%A5JVM%E9%97%AE%E9%A2%98/v2-dc19b7f178ecd1fb19c51ce8ea96c4da_720w.webp" class title="img">
+
+<p>之所以说内存存在碎片化现象就是根据 used 和 capacity 的数据得来的，上面说了元空间的分配以 chunk 为单位，即使一个 ClassLoader 只加载1个类，也会独占整个 chunk，所以当出现 used 和 capacity 两者之差较大的时候，说明此时存在内存碎片化的情况。</p>
+<p>GC日志demo如下：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line">&#123;Heap before GC invocations=<span class="number">0</span> (full <span class="number">0</span>):</span><br><span class="line"> par <span class="keyword">new</span> generation   total <span class="number">314560</span>K, used <span class="number">141123</span>K [<span class="number">0x00000000c0000000</span>, <span class="number">0x00000000d5550000</span>, <span class="number">0x00000000d5550000</span>)</span><br><span class="line">  eden space <span class="number">279616</span>K,  <span class="number">50</span>% used [<span class="number">0x00000000c0000000</span>, <span class="number">0x00000000c89d0d00</span>, <span class="number">0x00000000d1110000</span>)</span><br><span class="line">  from space <span class="number">34944</span>K,   <span class="number">0</span>% used [<span class="number">0x00000000d1110000</span>, <span class="number">0x00000000d1110000</span>, <span class="number">0x00000000d3330000</span>)</span><br><span class="line">  to   space <span class="number">34944</span>K,   <span class="number">0</span>% used [<span class="number">0x00000000d3330000</span>, <span class="number">0x00000000d3330000</span>, <span class="number">0x00000000d5550000</span>)</span><br><span class="line"> concurrent mark-sweep generation total <span class="number">699072</span>K, used <span class="number">0</span>K [<span class="number">0x00000000d5550000</span>, <span class="number">0x0000000100000000</span>, <span class="number">0x0000000100000000</span>)</span><br><span class="line"> Metaspace       used <span class="number">35337</span>K, capacity <span class="number">56242</span>K, committed <span class="number">56320</span>K, reserved <span class="number">1099776</span>K</span><br><span class="line">  <span class="keyword">class</span> space    used <span class="number">4734</span>K, capacity <span class="number">8172</span>K, committed <span class="number">8172</span>K, reserved <span class="number">1048576</span>K</span><br><span class="line"><span class="number">1.448</span>: [Full <span class="built_in">GC</span> (Metadata GC Threshold) <span class="number">1.448</span>: [CMS: <span class="number">0</span>K-&gt;<span class="number">10221</span>K(<span class="number">699072</span>K), <span class="number">0.0487207</span> secs] <span class="number">141123</span>K-&gt;<span class="number">10221</span>K(<span class="number">1013632</span>K), [Metaspace: <span class="number">35337</span>K-&gt;<span class="number">35337</span>K(<span class="number">1099776</span>K)], <span class="number">0.0488547</span> secs] [Times: user=<span class="number">0.09</span> sys=<span class="number">0.00</span>, real=<span class="number">0.05</span> secs] </span><br><span class="line">Heap after GC invocations=<span class="number">1</span> (full <span class="number">1</span>):</span><br><span class="line"> par <span class="keyword">new</span> generation   total <span class="number">314560</span>K, used <span class="number">0</span>K [<span class="number">0x00000000c0000000</span>, <span class="number">0x00000000d5550000</span>, <span class="number">0x00000000d5550000</span>)</span><br><span class="line">  eden space <span class="number">279616</span>K,   <span class="number">0</span>% used [<span class="number">0x00000000c0000000</span>, <span class="number">0x00000000c0000000</span>, <span class="number">0x00000000d1110000</span>)</span><br><span class="line">  from space <span class="number">34944</span>K,   <span class="number">0</span>% used [<span class="number">0x00000000d1110000</span>, <span class="number">0x00000000d1110000</span>, <span class="number">0x00000000d3330000</span>)</span><br><span class="line">  to   space <span class="number">34944</span>K,   <span class="number">0</span>% used [<span class="number">0x00000000d3330000</span>, <span class="number">0x00000000d3330000</span>, <span class="number">0x00000000d5550000</span>)</span><br><span class="line"> concurrent mark-sweep generation total <span class="number">699072</span>K, used <span class="number">10221</span>K [<span class="number">0x00000000d5550000</span>, <span class="number">0x0000000100000000</span>, <span class="number">0x0000000100000000</span>)</span><br><span class="line"> Metaspace       used <span class="number">35337</span>K, capacity <span class="number">56242</span>K, committed <span class="number">56320</span>K, reserved <span class="number">1099776</span>K</span><br><span class="line">  <span class="keyword">class</span> space    used <span class="number">4734</span>K, capacity <span class="number">8172</span>K, committed <span class="number">8172</span>K, reserved <span class="number">1048576</span>K</span><br><span class="line">&#125;</span><br><span class="line">&#123;Heap before GC invocations=<span class="number">1</span> (full <span class="number">1</span>):</span><br><span class="line"> par <span class="keyword">new</span> generation   total <span class="number">314560</span>K, used <span class="number">0</span>K [<span class="number">0x00000000c0000000</span>, <span class="number">0x00000000d5550000</span>, <span class="number">0x00000000d5550000</span>)</span><br><span class="line">  eden space <span class="number">279616</span>K,   <span class="number">0</span>% used [<span class="number">0x00000000c0000000</span>, <span class="number">0x00000000c0000000</span>, <span class="number">0x00000000d1110000</span>)</span><br><span class="line">  from space <span class="number">34944</span>K,   <span class="number">0</span>% used [<span class="number">0x00000000d1110000</span>, <span class="number">0x00000000d1110000</span>, <span class="number">0x00000000d3330000</span>)</span><br><span class="line">  to   space <span class="number">34944</span>K,   <span class="number">0</span>% used [<span class="number">0x00000000d3330000</span>, <span class="number">0x00000000d3330000</span>, <span class="number">0x00000000d5550000</span>)</span><br><span class="line"> concurrent mark-sweep generation total <span class="number">699072</span>K, used <span class="number">10221</span>K [<span class="number">0x00000000d5550000</span>, <span class="number">0x0000000100000000</span>, <span class="number">0x0000000100000000</span>)</span><br><span class="line"> Metaspace       used <span class="number">35337</span>K, capacity <span class="number">56242</span>K, committed <span class="number">56320</span>K, reserved <span class="number">1099776</span>K</span><br><span class="line">  <span class="keyword">class</span> space    used <span class="number">4734</span>K, capacity <span class="number">8172</span>K, committed <span class="number">8172</span>K, reserved <span class="number">1048576</span>K</span><br><span class="line"><span class="number">1.497</span>: [Full <span class="built_in">GC</span> (Last ditch collection) <span class="number">1.497</span>: [CMS: <span class="number">10221</span>K-&gt;<span class="number">3565</span>K(<span class="number">699072</span>K), <span class="number">0.0139783</span> secs] <span class="number">10221</span>K-&gt;<span class="number">3565</span>K(<span class="number">1013632</span>K), [Metaspace: <span class="number">35337</span>K-&gt;<span class="number">35337</span>K(<span class="number">1099776</span>K)], <span class="number">0.0193983</span> secs] [Times: user=<span class="number">0.03</span> sys=<span class="number">0.00</span>, real=<span class="number">0.02</span> secs] </span><br><span class="line">Heap after GC invocations=<span class="number">2</span> (full <span class="number">2</span>):</span><br><span class="line"> par <span class="keyword">new</span> generation   total <span class="number">314560</span>K, used <span class="number">0</span>K [<span class="number">0x00000000c0000000</span>, <span class="number">0x00000000d5550000</span>, <span class="number">0x00000000d5550000</span>)</span><br><span class="line">  eden space <span class="number">279616</span>K,   <span class="number">0</span>% used [<span class="number">0x00000000c0000000</span>, <span class="number">0x00000000c0000000</span>, <span class="number">0x00000000d1110000</span>)</span><br><span class="line">  from space <span class="number">34944</span>K,   <span class="number">0</span>% used [<span class="number">0x00000000d1110000</span>, <span class="number">0x00000000d1110000</span>, <span class="number">0x00000000d3330000</span>)</span><br><span class="line">  to   space <span class="number">34944</span>K,   <span class="number">0</span>% used [<span class="number">0x00000000d3330000</span>, <span class="number">0x00000000d3330000</span>, <span class="number">0x00000000d5550000</span>)</span><br><span class="line"> concurrent mark-sweep generation total <span class="number">699072</span>K, used <span class="number">3565</span>K [<span class="number">0x00000000d5550000</span>, <span class="number">0x0000000100000000</span>, <span class="number">0x0000000100000000</span>)</span><br><span class="line"> Metaspace       used <span class="number">17065</span>K, capacity <span class="number">22618</span>K, committed <span class="number">35840</span>K, reserved <span class="number">1079296</span>K</span><br><span class="line">  <span class="keyword">class</span> space    used <span class="number">1624</span>K, capacity <span class="number">2552</span>K, committed <span class="number">8172</span>K, reserved <span class="number">1048576</span>K</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>元空间主要适用于存放类的相关信息，而存在内存碎片化说明很可能创建了较多的类加载器，同时使用率较低。</p>
+<p>因此，当元空间出现内存碎片化时，我们会着重关注是不是创建了大量的类加载器。</p>
+<p>3）通过 dump 堆存储文件发现存在大量 DelegatingClassLoader</p>
+<p>通过进一步分析，发现是由于反射导致创建大量 DelegatingClassLoader。其核心原理如下：</p>
+<p>在 JVM 上，最初是通过 JNI 调用来实现方法的反射调用，当 JVM 注意到通过反射经常访问某个方法时，它将生成字节码来执行相同的操作，称为膨胀（inflation）机制。如果使用字节码的方式，则会为该方法生成一个 DelegatingClassLoader，如果存在大量方法经常反射调用，则会导致创建大量 DelegatingClassLoader。</p>
+<p><strong>反射调用频次达到多少才会从 JNI 转字节码？</strong></p>
+<p>默认是15次，可通过参数 -Dsun.reflect.inflationThreshold 进行控制，在小于该次数时会使用 JNI 的方式对方法进行调用，如果调用次数超过该次数就会使用字节码的方式生成方法调用。</p>
+<p><strong>分析结论</strong>：反射调用导致创建大量 DelegatingClassLoader，占用了较大的元空间内存，同时存在内存碎片化现象，导致元空间利用率不高，从而较快达到阈值，触发 FGC。</p>
+<p><strong>优化策略：</strong></p>
+<p>1）适当调大 metaspace 的空间大小。</p>
+<p>2）优化不合理的反射调用。例如最常见的属性拷贝工具类 BeanUtils.copyProperties 可以使用 mapstruct 替换。</p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>当被面试官问到 JVM 调优时，完全可以按照本文的脉络回答：</p>
+<ul>
+<li>首先表态如果使用合理的 JVM 参数配置，在大多数情况应该是不需要调优的——对应本文第1题</li>
+<li>其次说明可能还是存在少量场景需要调优，我们可以对一些 JVM 核心指标配置监控告警，当出现波动时人为介入分析评估——对应本文第3题</li>
+<li>最后举一个实际的调优例子来加以说明——对应本文第5题</li>
+</ul>
+<p>如果面试官反问怎么分析排查的，则可以使用本文第4题的常用命令和工具来与之对线。</p>
+<p>这一套流程下来，我相信大部分面试官都会对你印象不错。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://ethanwhite-chen.github.io/2023/05/23/%E5%85%B3%E4%BA%8E%E6%AD%BB%E9%94%81%E4%BB%A5%E5%8F%8A%E5%A6%82%E4%BD%95%E6%9F%A5%E7%9C%8B%E7%BA%BF%E7%A8%8B%E6%98%AF%E5%90%A6%E6%9C%89%E6%AD%BB%E9%94%81/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="EthanWhite-Chen">
+      <meta itemprop="description" content="不积跬步无以至千里，不积小流无以成江河。分享点滴成长，就有光明未来！">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="ykchen的个人博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/05/23/%E5%85%B3%E4%BA%8E%E6%AD%BB%E9%94%81%E4%BB%A5%E5%8F%8A%E5%A6%82%E4%BD%95%E6%9F%A5%E7%9C%8B%E7%BA%BF%E7%A8%8B%E6%98%AF%E5%90%A6%E6%9C%89%E6%AD%BB%E9%94%81/" class="post-title-link" itemprop="url">关于死锁以及如何查看线程是否有死锁</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2023-05-23 15:51:11 / Modified: 17:02:32" itemprop="dateCreated datePublished" datetime="2023-05-23T15:51:11+08:00">2023-05-23</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E9%9D%A2%E8%AF%95%E9%A2%98%E7%9B%AE/" itemprop="url" rel="index"><span itemprop="name">面试题目</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="Symbols count in article">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">Symbols count in article: </span>
+              <span>9.9k</span>
+            </span>
+            <span class="post-meta-item" title="Reading time">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">Reading time &asymp;</span>
+              <span>18 mins.</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>在 Java 的并发编程中，有一个问题需要特别注意，那就是死锁，如果发生了死锁，基本就是重启，而重启将会丢失运行中的数据。所以，了解死锁的形成并排查死锁到预防死锁成了一个重要的问题。</p>
+<h1 id="什么是死锁？"><a href="#什么是死锁？" class="headerlink" title="什么是死锁？"></a>什么是死锁？</h1><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br></pre></td><td class="code"><pre><span class="line">  <span class="keyword">package</span> cn.sxt.game;    </span><br><span class="line">  <span class="comment">/* 死锁</span></span><br><span class="line"><span class="comment">  *</span></span><br><span class="line"><span class="comment">  </span></span><br><span class="line"><span class="comment">  * */</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">DeadLock</span> &#123;</span><br><span class="line">      <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> &#123;</span><br><span class="line">          Object o1=<span class="keyword">new</span> <span class="title class_">Object</span>();</span><br><span class="line">          Object o2=<span class="keyword">new</span> <span class="title class_">Object</span>();</span><br><span class="line">          Thread t1=<span class="keyword">new</span> <span class="title class_">MyThread1</span>(o1,o2);</span><br><span class="line">          Thread t2=<span class="keyword">new</span> <span class="title class_">MyThread2</span>(o1,o2);</span><br><span class="line">          t1.setName(<span class="string">&quot;t1&quot;</span>);<span class="comment">//给线程起名字t1</span></span><br><span class="line">          t2.setName(<span class="string">&quot;t2&quot;</span>);<span class="comment">//给线程起名字t2</span></span><br><span class="line">          t1.start();</span><br><span class="line">          t2.start();</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">class</span> <span class="title class_">MyThread1</span> <span class="keyword">extends</span> <span class="title class_">Thread</span>&#123;</span><br><span class="line">      Object o1;</span><br><span class="line">      Object o2;</span><br><span class="line">      <span class="keyword">public</span> <span class="title function_">MyThread1</span><span class="params">(Object o1,Object o2)</span>&#123;</span><br><span class="line">          <span class="built_in">this</span>.o1=o1;</span><br><span class="line">          <span class="built_in">this</span>.o2=o2;</span><br><span class="line">      &#125;</span><br><span class="line">  </span><br><span class="line">      <span class="meta">@Override</span></span><br><span class="line">      <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">run</span><span class="params">()</span> &#123;</span><br><span class="line">          <span class="keyword">synchronized</span> (o1)&#123;</span><br><span class="line">              <span class="keyword">try</span> &#123;</span><br><span class="line">                  System.out.println(<span class="string">&quot;获取资源1&quot;</span>);</span><br><span class="line">                  sleep(<span class="number">1000</span>);<span class="comment">// 等待 1 秒让另一个线程拿到锁</span></span><br><span class="line">              &#125; <span class="keyword">catch</span> (InterruptedException e) &#123;</span><br><span class="line">                  e.printStackTrace();</span><br><span class="line">              &#125;</span><br><span class="line">              <span class="keyword">synchronized</span> (o2)&#123; &#125;</span><br><span class="line">    &#125;</span><br><span class="line">          &#125;</span><br><span class="line">          &#125;</span><br><span class="line">  <span class="keyword">class</span> <span class="title class_">MyThread2</span> <span class="keyword">extends</span> <span class="title class_">Thread</span>&#123;</span><br><span class="line">    Object o1;</span><br><span class="line">    Object o2;</span><br><span class="line">    <span class="keyword">public</span> <span class="title function_">MyThread2</span><span class="params">(Object o1,Object o2)</span>&#123;</span><br><span class="line">        <span class="built_in">this</span>.o1=o1;</span><br><span class="line">        <span class="built_in">this</span>.o2=o2;</span><br><span class="line">    &#125;</span><br><span class="line">      <span class="meta">@Override</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">run</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="keyword">synchronized</span> (o2)&#123;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            System.out.println(<span class="string">&quot;获取资源2&quot;</span>);</span><br><span class="line">            sleep(<span class="number">1000</span>);<span class="comment">// 等待 1 秒让另一个线程拿到锁</span></span><br><span class="line">        &#125; <span class="keyword">catch</span> (InterruptedException e) &#123;</span><br><span class="line">            e.printStackTrace();</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">synchronized</span> (o1)&#123;</span><br><span class="line"></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>​		这里面的代码中，我们启用了两个线程，分别抢占2个资源，但这两个资源又分别被不同的对象（字符串）锁住了。当第一个线程，进入同步块，拿到o1锁，并等待 1 秒钟去拿o2锁，当第二个线程进入同步块后，拿到o2锁，并等待 1 秒钟去拿o1锁，注意：此时， 拿着 o1 锁的线程企图拿到 o2 的锁，但这个时候，拿着 o2 的线程也想去拿o1 的锁。于是就出现了互相僵持的情况，谁也无法拿到对方的锁，整个系统就卡死了。</p>
+<p>这种情况就是死锁。</p>
+<p>像我们现在写的代码是自己故意造出来的死锁，我们能够发现，那如果是线上环境怎么办，假如我们的系统卡死了，我们怎么知道到底是哪一段代码出现了问题，有没有可能使死锁的问题。也就是如何检测死锁。</p>
+<h1 id="如何检测死锁？"><a href="#如何检测死锁？" class="headerlink" title="如何检测死锁？"></a>如何检测死锁？</h1><p>由于死锁极难通过人工的方式查出来，因此JDK 提供了命令来检测某个java进程中心线程的情况，并排查有没有死锁。 jps , 用来查看java 程序的进程号，当然在 Linux 中也可以通过别的方式获取， jstack 进程号命令则可以答应对应进程的栈信息，并找到死锁。<br>在<strong>windows使用jps的命令</strong></p>
+<figure class="highlight bat"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">C:\<span class="title">Users</span>\16047&gt;<span class="title">jps</span></span></span><br><span class="line"><span class="function">    1488 <span class="title">Jps</span></span></span><br><span class="line"><span class="function">    3028 <span class="title">Launcher</span></span></span><br><span class="line"><span class="function">    9188 <span class="title">DeadLock</span></span></span><br><span class="line"><span class="function">    2632</span></span><br><span class="line"><span class="function"><span class="title">C</span>:\<span class="title">Users</span>\16047&gt;<span class="title">jstack</span> 9188</span></span><br><span class="line"><span class="function">2020-04-14 09:05:35</span></span><br><span class="line"><span class="function"><span class="title">Full</span> <span class="title">thread</span> <span class="title">dump</span> <span class="title">Java</span> <span class="title">HotSpot</span>(<span class="title">TM</span>) 64-<span class="title">Bit</span> <span class="title">Server</span> <span class="title">VM</span> (13.0.1+9 <span class="title">mixed</span> <span class="title">mode</span>, <span class="title">sharing</span>):</span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function"><span class="title">Threads</span> <span class="title">class</span> <span class="title">SMR</span> <span class="title">info</span>:</span></span><br><span class="line"><span class="function"><span class="title">_java_thread_list</span>=0<span class="title">x00000254ffd7b290</span>, <span class="title">length</span>=13, <span class="title">elements</span>=&#123;</span></span><br><span class="line"><span class="function">0<span class="title">x00000254ffa11000</span>, 0<span class="title">x00000254ffa14800</span>, 0<span class="title">x00000254ffa37000</span>, 0<span class="title">x00000254ffa38000</span>,</span></span><br><span class="line"><span class="function">0<span class="title">x00000254ffa39800</span>, 0<span class="title">x00000254ffae1000</span>, 0<span class="title">x00000254ffa42800</span>, 0<span class="title">x00000254ff9f5800</span>,</span></span><br><span class="line"><span class="function">0<span class="title">x00000254ffced800</span>, 0<span class="title">x00000254ffcf7000</span>, 0<span class="title">x00000254ffd04800</span>, 0<span class="title">x00000254ffd3f800</span>,</span></span><br><span class="line"><span class="function">0<span class="title">x00000254f8011800</span></span></span><br><span class="line"><span class="function">&#125;</span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">&quot;<span class="title">Reference</span> <span class="title">Handler</span>&quot; #2 <span class="title">daemon</span> <span class="title">prio</span>=10 <span class="title">os_prio</span>=2 <span class="title">cpu</span>=0.00<span class="title">ms</span> <span class="title">elapsed</span>=108.48<span class="title">s</span> <span class="title">tid</span>=0<span class="title">x00000254ffa11000</span> <span class="title">nid</span>=0<span class="title">x28e4</span> <span class="title">waiting</span> <span class="title">on</span> <span class="title">condition</span>  [0<span class="title">x00000065b3afe000</span>]</span></span><br><span class="line"><span class="function"><span class="title">java.lang.Thread.State</span>: <span class="title">RUNNABLE</span></span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">java.lang.ref.Reference.waitForReferencePendingList</span>(<span class="title">java.base</span>@13.0.1/<span class="title">Native</span> <span class="title">Method</span>)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">java.lang.ref.Reference.processPendingReferences</span>(<span class="title">java.base</span>@13.0.1/<span class="title">Reference.java</span>:241)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">java.lang.ref.Reference</span>$<span class="title">ReferenceHandler.run</span>(<span class="title">java.base</span>@13.0.1/<span class="title">Reference.java</span>:213)</span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">&quot;<span class="title">Finalizer</span>&quot; #3 <span class="title">daemon</span> <span class="title">prio</span>=8 <span class="title">os_prio</span>=1 <span class="title">cpu</span>=0.00<span class="title">ms</span> <span class="title">elapsed</span>=108.48<span class="title">s</span> <span class="title">tid</span>=0<span class="title">x00000254ffa14800</span> <span class="title">nid</span>=0<span class="title">x4204</span> <span class="title">in</span> <span class="title">Object.wait</span>()  [0<span class="title">x00000065b3bfe000</span>]</span></span><br><span class="line"><span class="function"><span class="title">java.lang.Thread.State</span>: <span class="title">WAITING</span> (<span class="title">on</span> <span class="title">object</span> <span class="title">monitor</span>)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">java.lang.Object.wait</span>(<span class="title">java.base</span>@13.0.1/<span class="title">Native</span> <span class="title">Method</span>)</span></span><br><span class="line"><span class="function">- <span class="title">waiting</span> <span class="title">on</span> &lt;0<span class="title">x0000000089d0aec8</span>&gt; (<span class="title">a</span> <span class="title">java.lang.ref.ReferenceQueue</span>$<span class="title">Lock</span>)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">java.lang.ref.ReferenceQueue.remove</span>(<span class="title">java.base</span>@13.0.1/<span class="title">ReferenceQueue.java</span>:155)</span></span><br><span class="line"><span class="function">- <span class="title">locked</span> &lt;0<span class="title">x0000000089d0aec8</span>&gt; (<span class="title">a</span> <span class="title">java.lang.ref.ReferenceQueue</span>$<span class="title">Lock</span>)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">java.lang.ref.ReferenceQueue.remove</span>(<span class="title">java.base</span>@13.0.1/<span class="title">ReferenceQueue.java</span>:176)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">java.lang.ref.Finalizer</span>$<span class="title">FinalizerThread.run</span>(<span class="title">java.base</span>@13.0.1/<span class="title">Finalizer.java</span>:170)</span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">&quot;<span class="title">Signal</span> <span class="title">Dispatcher</span>&quot; #4 <span class="title">daemon</span> <span class="title">prio</span>=9 <span class="title">os_prio</span>=2 <span class="title">cpu</span>=0.00<span class="title">ms</span> <span class="title">elapsed</span>=108.46<span class="title">s</span> <span class="title">tid</span>=0<span class="title">x00000254ffa37000</span> <span class="title">nid</span>=0<span class="title">x181c</span> <span class="title">runnable</span>  [0<span class="title">x0000000000000000</span>]</span></span><br><span class="line"><span class="function"><span class="title">java.lang.Thread.State</span>: <span class="title">RUNNABLE</span></span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">&quot;<span class="title">Attach</span> <span class="title">Listener</span>&quot; #5 <span class="title">daemon</span> <span class="title">prio</span>=5 <span class="title">os_prio</span>=2 <span class="title">cpu</span>=31.25<span class="title">ms</span> <span class="title">elapsed</span>=108.46<span class="title">s</span> <span class="title">tid</span>=0<span class="title">x00000254ffa38000</span> <span class="title">nid</span>=0<span class="title">x2bb4</span> <span class="title">waiting</span> <span class="title">on</span> <span class="title">condition</span>  [0<span class="title">x0000000000000000</span>]</span></span><br><span class="line"><span class="function"><span class="title">java.lang.Thread.State</span>: <span class="title">RUNNABLE</span></span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">&quot;<span class="title">C2</span> <span class="title">CompilerThread0</span>&quot; #6 <span class="title">daemon</span> <span class="title">prio</span>=9 <span class="title">os_prio</span>=2 <span class="title">cpu</span>=62.50<span class="title">ms</span> <span class="title">elapsed</span>=108.46<span class="title">s</span> <span class="title">tid</span>=0<span class="title">x00000254ffa39800</span> <span class="title">nid</span>=0<span class="title">x25c0</span> <span class="title">waiting</span> <span class="title">on</span> <span class="title">condition</span>  [0<span class="title">x0000000000000000</span>]</span></span><br><span class="line"><span class="function"><span class="title">java.lang.Thread.State</span>: <span class="title">RUNNABLE</span></span></span><br><span class="line"><span class="function"><span class="title">No</span> <span class="title">compile</span> <span class="title">task</span></span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">&quot;<span class="title">C1</span> <span class="title">CompilerThread0</span>&quot; #9 <span class="title">daemon</span> <span class="title">prio</span>=9 <span class="title">os_prio</span>=2 <span class="title">cpu</span>=46.88<span class="title">ms</span> <span class="title">elapsed</span>=108.46<span class="title">s</span> <span class="title">tid</span>=0<span class="title">x00000254ffae1000</span> <span class="title">nid</span>=0<span class="title">x2988</span> <span class="title">waiting</span> <span class="title">on</span> <span class="title">condition</span>  [0<span class="title">x0000000000000000</span>]</span></span><br><span class="line"><span class="function"><span class="title">java.lang.Thread.State</span>: <span class="title">RUNNABLE</span></span></span><br><span class="line"><span class="function"><span class="title">No</span> <span class="title">compile</span> <span class="title">task</span></span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">&quot;<span class="title">Sweeper</span> <span class="title">thread</span>&quot; #10 <span class="title">daemon</span> <span class="title">prio</span>=9 <span class="title">os_prio</span>=2 <span class="title">cpu</span>=0.00<span class="title">ms</span> <span class="title">elapsed</span>=108.46<span class="title">s</span> <span class="title">tid</span>=0<span class="title">x00000254ffa42800</span> <span class="title">nid</span>=0<span class="title">x3ce8</span> <span class="title">runnable</span>  [0<span class="title">x0000000000000000</span>]</span></span><br><span class="line"><span class="function"><span class="title">java.lang.Thread.State</span>: <span class="title">RUNNABLE</span></span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">&quot;<span class="title">Common</span>-<span class="title">Cleaner</span>&quot; #11 <span class="title">daemon</span> <span class="title">prio</span>=8 <span class="title">os_prio</span>=1 <span class="title">cpu</span>=0.00<span class="title">ms</span> <span class="title">elapsed</span>=108.44<span class="title">s</span> <span class="title">tid</span>=0<span class="title">x00000254ff9f5800</span> <span class="title">nid</span>=0<span class="title">x3b78</span> <span class="title">in</span> <span class="title">Object.wait</span>()  [0<span class="title">x00000065b41fe000</span>]</span></span><br><span class="line"><span class="function"><span class="title">java.lang.Thread.State</span>: <span class="title">TIMED_WAITING</span> (<span class="title">on</span> <span class="title">object</span> <span class="title">monitor</span>)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">java.lang.Object.wait</span>(<span class="title">java.base</span>@13.0.1/<span class="title">Native</span> <span class="title">Method</span>)</span></span><br><span class="line"><span class="function">- <span class="title">waiting</span> <span class="title">on</span> &lt;0<span class="title">x0000000089db21c0</span>&gt; (<span class="title">a</span> <span class="title">java.lang.ref.ReferenceQueue</span>$<span class="title">Lock</span>)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">java.lang.ref.ReferenceQueue.remove</span>(<span class="title">java.base</span>@13.0.1/<span class="title">ReferenceQueue.java</span>:155)</span></span><br><span class="line"><span class="function">- <span class="title">locked</span> &lt;0<span class="title">x0000000089db21c0</span>&gt; (<span class="title">a</span> <span class="title">java.lang.ref.ReferenceQueue</span>$<span class="title">Lock</span>)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">jdk.internal.ref.CleanerImpl.run</span>(<span class="title">java.base</span>@13.0.1/<span class="title">CleanerImpl.java</span>:148)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">java.lang.Thread.run</span>(<span class="title">java.base</span>@13.0.1/<span class="title">Thread.java</span>:830)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">jdk.internal.misc.InnocuousThread.run</span>(<span class="title">java.base</span>@13.0.1/<span class="title">InnocuousThread.java</span>:134)</span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">&quot;<span class="title">Monitor</span> <span class="title">Ctrl</span>-<span class="title">Break</span>&quot; #12 <span class="title">daemon</span> <span class="title">prio</span>=5 <span class="title">os_prio</span>=0 <span class="title">cpu</span>=15.63<span class="title">ms</span> <span class="title">elapsed</span>=108.36<span class="title">s</span> <span class="title">tid</span>=0<span class="title">x00000254ffced800</span> <span class="title">nid</span>=0<span class="title">x2a38</span> <span class="title">runnable</span>  [0<span class="title">x00000065b43fe000</span>]</span></span><br><span class="line"><span class="function"><span class="title">java.lang.Thread.State</span>: <span class="title">RUNNABLE</span></span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">sun.nio.ch.SocketDispatcher.read0</span>(<span class="title">java.base</span>@13.0.1/<span class="title">Native</span> <span class="title">Method</span>)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">sun.nio.ch.SocketDispatcher.read</span>(<span class="title">java.base</span>@13.0.1/<span class="title">SocketDispatcher.java</span>:46)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">sun.nio.ch.NioSocketImpl.tryRead</span>(<span class="title">java.base</span>@13.0.1/<span class="title">NioSocketImpl.java</span>:262)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">sun.nio.ch.NioSocketImpl.implRead</span>(<span class="title">java.base</span>@13.0.1/<span class="title">NioSocketImpl.java</span>:313)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">sun.nio.ch.NioSocketImpl.read</span>(<span class="title">java.base</span>@13.0.1/<span class="title">NioSocketImpl.java</span>:351)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">sun.nio.ch.NioSocketImpl</span>$1.<span class="title">read</span>(<span class="title">java.base</span>@13.0.1/<span class="title">NioSocketImpl.java</span>:802)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">java.net.Socket</span>$<span class="title">SocketInputStream.read</span>(<span class="title">java.base</span>@13.0.1/<span class="title">Socket.java</span>:937)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">sun.nio.cs.StreamDecoder.readBytes</span>(<span class="title">java.base</span>@13.0.1/<span class="title">StreamDecoder.java</span>:297)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">sun.nio.cs.StreamDecoder.implRead</span>(<span class="title">java.base</span>@13.0.1/<span class="title">StreamDecoder.java</span>:339)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">sun.nio.cs.StreamDecoder.read</span>(<span class="title">java.base</span>@13.0.1/<span class="title">StreamDecoder.java</span>:188)</span></span><br><span class="line"><span class="function">- <span class="title">locked</span> &lt;0<span class="title">x0000000089b125a0</span>&gt; (<span class="title">a</span> <span class="title">java.io.InputStreamReader</span>)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">java.io.InputStreamReader.read</span>(<span class="title">java.base</span>@13.0.1/<span class="title">InputStreamReader.java</span>:185)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">java.io.BufferedReader.fill</span>(<span class="title">java.base</span>@13.0.1/<span class="title">BufferedReader.java</span>:161)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">java.io.BufferedReader.readLine</span>(<span class="title">java.base</span>@13.0.1/<span class="title">BufferedReader.java</span>:326)</span></span><br><span class="line"><span class="function">- <span class="title">locked</span> &lt;0<span class="title">x0000000089b125a0</span>&gt; (<span class="title">a</span> <span class="title">java.io.InputStreamReader</span>)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">java.io.BufferedReader.readLine</span>(<span class="title">java.base</span>@13.0.1/<span class="title">BufferedReader.java</span>:392)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">com.intellij.rt.execution.application.AppMainV2</span>$1.<span class="title">run</span>(<span class="title">AppMainV2.java</span>:64)</span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">&quot;<span class="title">Service</span> <span class="title">Thread</span>&quot; #13 <span class="title">daemon</span> <span class="title">prio</span>=9 <span class="title">os_prio</span>=0 <span class="title">cpu</span>=0.00<span class="title">ms</span> <span class="title">elapsed</span>=108.36<span class="title">s</span> <span class="title">tid</span>=0<span class="title">x00000254ffcf7000</span> <span class="title">nid</span>=0<span class="title">x42b4</span> <span class="title">runnable</span>  [0<span class="title">x0000000000000000</span>]</span></span><br><span class="line"><span class="function"><span class="title">java.lang.Thread.State</span>: <span class="title">RUNNABLE</span></span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">&quot;<span class="title">t1</span>&quot; #14 <span class="title">prio</span>=5 <span class="title">os_prio</span>=0 <span class="title">cpu</span>=0.00<span class="title">ms</span> <span class="title">elapsed</span>=108.35<span class="title">s</span> <span class="title">tid</span>=0<span class="title">x00000254ffd04800</span> <span class="title">nid</span>=0<span class="title">x3384</span> <span class="title">waiting</span> <span class="title">for</span> <span class="title">monitor</span> <span class="title">entry</span>  [0<span class="title">x00000065b46fe000</span>]</span></span><br><span class="line"><span class="function"><span class="title">java.lang.Thread.State</span>: <span class="title">BLOCKED</span> (<span class="title">on</span> <span class="title">object</span> <span class="title">monitor</span>)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">cn.sxt.game.MyThread1.run</span>(<span class="title">DeadLock.java</span>:36)</span></span><br><span class="line"><span class="function">- <span class="title">waiting</span> <span class="title">to</span> <span class="title">lock</span> &lt;0<span class="title">x0000000089ccb560</span>&gt; (<span class="title">a</span> <span class="title">java.lang.Object</span>)</span></span><br><span class="line"><span class="function">- <span class="title">locked</span> &lt;0<span class="title">x0000000089ccb550</span>&gt; (<span class="title">a</span> <span class="title">java.lang.Object</span>)</span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">&quot;<span class="title">t2</span>&quot; #15 <span class="title">prio</span>=5 <span class="title">os_prio</span>=0 <span class="title">cpu</span>=0.00<span class="title">ms</span> <span class="title">elapsed</span>=108.35<span class="title">s</span> <span class="title">tid</span>=0<span class="title">x00000254ffd3f800</span> <span class="title">nid</span>=0<span class="title">x3c18</span> <span class="title">waiting</span> <span class="title">for</span> <span class="title">monitor</span> <span class="title">entry</span>  [0<span class="title">x00000065b47ff000</span>]</span></span><br><span class="line"><span class="function"><span class="title">java.lang.Thread.State</span>: <span class="title">BLOCKED</span> (<span class="title">on</span> <span class="title">object</span> <span class="title">monitor</span>)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">cn.sxt.game.MyThread2.run</span>(<span class="title">DeadLock.java</span>:59)</span></span><br><span class="line"><span class="function">- <span class="title">waiting</span> <span class="title">to</span> <span class="title">lock</span> &lt;0<span class="title">x0000000089ccb550</span>&gt; (<span class="title">a</span> <span class="title">java.lang.Object</span>)</span></span><br><span class="line"><span class="function">- <span class="title">locked</span> &lt;0<span class="title">x0000000089ccb560</span>&gt; (<span class="title">a</span> <span class="title">java.lang.Object</span>)</span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">&quot;<span class="title">DestroyJavaVM</span>&quot; #16 <span class="title">prio</span>=5 <span class="title">os_prio</span>=0 <span class="title">cpu</span>=156.25<span class="title">ms</span> <span class="title">elapsed</span>=108.35<span class="title">s</span> <span class="title">tid</span>=0<span class="title">x00000254f8011800</span> <span class="title">nid</span>=0<span class="title">x2780</span> <span class="title">waiting</span> <span class="title">on</span> <span class="title">condition</span>  [0<span class="title">x0000000000000000</span>]</span></span><br><span class="line"><span class="function"><span class="title">java.lang.Thread.State</span>: <span class="title">RUNNABLE</span></span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">&quot;<span class="title">VM</span> <span class="title">Thread</span>&quot; <span class="title">os_prio</span>=2 <span class="title">cpu</span>=0.00<span class="title">ms</span> <span class="title">elapsed</span>=108.48<span class="title">s</span> <span class="title">tid</span>=0<span class="title">x00000254ffa10000</span> <span class="title">nid</span>=0<span class="title">x2544</span> <span class="title">runnable</span></span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">&quot;<span class="title">GC</span> <span class="title">Thread</span>#0&quot; <span class="title">os_prio</span>=2 <span class="title">cpu</span>=0.00<span class="title">ms</span> <span class="title">elapsed</span>=108.49<span class="title">s</span> <span class="title">tid</span>=0<span class="title">x00000254f8055800</span> <span class="title">nid</span>=0<span class="title">x117c</span> <span class="title">runnable</span></span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">&quot;<span class="title">G1</span> <span class="title">Main</span> <span class="title">Marker</span>&quot; <span class="title">os_prio</span>=2 <span class="title">cpu</span>=0.00<span class="title">ms</span> <span class="title">elapsed</span>=108.49<span class="title">s</span> <span class="title">tid</span>=0<span class="title">x00000254f8066800</span> <span class="title">nid</span>=0<span class="title">x3098</span> <span class="title">runnable</span></span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">&quot;<span class="title">G1</span> <span class="title">Conc</span>#0&quot; <span class="title">os_prio</span>=2 <span class="title">cpu</span>=0.00<span class="title">ms</span> <span class="title">elapsed</span>=108.49<span class="title">s</span> <span class="title">tid</span>=0<span class="title">x00000254f8068800</span> <span class="title">nid</span>=0<span class="title">x24e4</span> <span class="title">runnable</span></span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">&quot;<span class="title">G1</span> <span class="title">Refine</span>#0&quot; <span class="title">os_prio</span>=2 <span class="title">cpu</span>=0.00<span class="title">ms</span> <span class="title">elapsed</span>=108.49<span class="title">s</span> <span class="title">tid</span>=0<span class="title">x00000254ff88a800</span> <span class="title">nid</span>=0<span class="title">x127c</span> <span class="title">runnable</span></span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">&quot;<span class="title">G1</span> <span class="title">Young</span> <span class="title">RemSet</span> <span class="title">Sampling</span>&quot; <span class="title">os_prio</span>=2 <span class="title">cpu</span>=0.00<span class="title">ms</span> <span class="title">elapsed</span>=108.49<span class="title">s</span> <span class="title">tid</span>=0<span class="title">x00000254ff88c000</span> <span class="title">nid</span>=0<span class="title">x1900</span> <span class="title">runnable</span></span></span><br><span class="line"><span class="function">&quot;<span class="title">VM</span> <span class="title">Periodic</span> <span class="title">Task</span> <span class="title">Thread</span>&quot; <span class="title">os_prio</span>=2 <span class="title">cpu</span>=0.00<span class="title">ms</span> <span class="title">elapsed</span>=108.36<span class="title">s</span> <span class="title">tid</span>=0<span class="title">x00000254ffcfa800</span> <span class="title">nid</span>=0<span class="title">x230c</span> <span class="title">waiting</span> <span class="title">on</span> <span class="title">condition</span></span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function"><span class="title">JNI</span> <span class="title">global</span> <span class="title">refs</span>: 16, <span class="title">weak</span> <span class="title">refs</span>: 0</span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">// 找到一个死锁</span></span><br><span class="line"><span class="function"><span class="title">Found</span> <span class="title">one</span> <span class="title">Java</span>-<span class="title">level</span> <span class="title">deadlock</span>:</span></span><br><span class="line"><span class="function">=============================</span></span><br><span class="line"><span class="function">&quot;<span class="title">t1</span>&quot;:</span></span><br><span class="line"><span class="function"><span class="title">waiting</span> <span class="title">to</span> <span class="title">lock</span> <span class="title">monitor</span> 0<span class="title">x00000254ffa1df00</span> (<span class="title">object</span> 0<span class="title">x0000000089ccb560</span>, <span class="title">a</span> <span class="title">java.lang.Object</span>),</span></span><br><span class="line"><span class="function"><span class="title">which</span> <span class="title">is</span> <span class="title">held</span> <span class="title">by</span> &quot;<span class="title">t2</span>&quot;</span></span><br><span class="line"><span class="function">&quot;<span class="title">t2</span>&quot;:</span></span><br><span class="line"><span class="function"><span class="title">waiting</span> <span class="title">to</span> <span class="title">lock</span> <span class="title">monitor</span> 0<span class="title">x00000254ffa1dd00</span> (<span class="title">object</span> 0<span class="title">x0000000089ccb550</span>, <span class="title">a</span> <span class="title">java.lang.Object</span>),</span></span><br><span class="line"><span class="function"><span class="title">which</span> <span class="title">is</span> <span class="title">held</span> <span class="title">by</span> &quot;<span class="title">t1</span>&quot;</span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function"><span class="title">Java</span> <span class="title">stack</span> <span class="title">information</span> <span class="title">for</span> <span class="title">the</span> <span class="title">threads</span> <span class="title">listed</span> <span class="title">above</span>:</span></span><br><span class="line"><span class="function">===================================================</span></span><br><span class="line"><span class="function">&quot;<span class="title">t1</span>&quot;:</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">cn.sxt.game.MyThread1.run</span>(<span class="title">DeadLock.java</span>:36)</span></span><br><span class="line"><span class="function">// 等待 0<span class="title">x0000000089ccb560</span> 锁</span></span><br><span class="line"><span class="function">- <span class="title">waiting</span> <span class="title">to</span> <span class="title">lock</span> &lt;0<span class="title">x0000000089ccb560</span>&gt; (<span class="title">a</span> <span class="title">java.lang.Object</span>)</span></span><br><span class="line"><span class="function">//持有0<span class="title">x0000000089ccb550</span> 锁</span></span><br><span class="line"><span class="function">- <span class="title">locked</span> &lt;0<span class="title">x0000000089ccb550</span>&gt; (<span class="title">a</span> <span class="title">java.lang.Object</span>)</span></span><br><span class="line"><span class="function">&quot;<span class="title">t2</span>&quot;:</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">cn.sxt.game.MyThread2.run</span>(<span class="title">DeadLock.java</span>:59)</span></span><br><span class="line"><span class="function">//等待0<span class="title">x0000000089ccb550</span> 锁</span></span><br><span class="line"><span class="function">- <span class="title">waiting</span> <span class="title">to</span> <span class="title">lock</span> &lt;0<span class="title">x0000000089ccb550</span>&gt; (<span class="title">a</span> <span class="title">java.lang.Object</span>)</span></span><br><span class="line"><span class="function">// 持有 0<span class="title">x0000000089ccb560</span> 锁</span></span><br><span class="line"><span class="function">- <span class="title">locked</span> &lt;0<span class="title">x0000000089ccb560</span>&gt; (<span class="title">a</span> <span class="title">java.lang.Object</span>)</span></span><br><span class="line"><span class="function">//发现一个死锁</span></span><br><span class="line"><span class="function"><span class="title">Found</span> 1 <span class="title">deadlock</span>.</span></span><br></pre></td></tr></table></figure>
+
+<figure class="highlight bat"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">t1  waiting to lock &lt;<span class="number">0</span>x0000000089ccb560&gt;locked &lt;<span class="number">0</span>x0000000089ccb550&gt;</span><br><span class="line">t2  waiting to lock &lt;<span class="number">0</span>x0000000089ccb550&gt;locked &lt;<span class="number">0</span>x0000000089ccb560&gt;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+
+<p>我们首先使用 jps 命令找到 java 进程号，然后使用 jstack 进程号 打印进程栈的信息，其中，在最后的部分，jstack 告诉我们，他找到了一个死锁，其中又详细的信息：t1 线程（这里我们已经给线程起名字为t1，通常情况下，给线程起一个合适的名字将更有利于排查）持有Object类型的编号为 0x0000000089ccb550 的锁，等待编号为 0x0000000089ccb560 的锁 ， 但这个锁由 t2 持有，于此同时，t1 和 t2 相反。t2 线程持有 0x0000000089ccb560 的锁，等待 0x0000000089ccb550 的锁。我们的注释里也写上了。</p>
+<p>那么发生了死锁，该怎么办呢？最简单的办法就是重启，重启之后，对 jstack 中打印的堆栈信息中的代码进行修改。重新发布。当然还有一些高级策略，比如让进程回滚到死锁前的状态，然后让他们顺序进入同步块。</p>
+<h1 id="死锁有哪些形成的原因"><a href="#死锁有哪些形成的原因" class="headerlink" title="死锁有哪些形成的原因"></a>死锁有哪些形成的原因</h1><p>一般来说，要出现死锁问题需要满足以下条件：</p>
+<p>互斥条件：一个资源每次只能被一个线程使用。</p>
+<p>请求与保持条件：一个进程因请求资源而阻塞时，对已获得的资源保持不放。</p>
+<p>不剥夺条件：进程已获得的资源，在未使用完之前，不能强行剥夺。</p>
+<p>循环等待条件：若干进程之间形成一种头尾相接的循环等待资源关系。</p>
+<p>死锁是由四个必要条件导致的，所以一般来说，只要破坏这四个必要条件中的一个条件，死锁情况就应该不会发生。<br>我们在编程的时候尽量避免发生死锁，如果出现死锁可以使用 jstack 命令查看线程是否有死锁。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://ethanwhite-chen.github.io/2023/05/23/%E7%BA%BF%E7%A8%8B%E4%B9%8B%E9%97%B4%E5%A6%82%E4%BD%95%E8%BF%9B%E2%BE%8F%E9%80%9A%E8%AE%AF%E7%9A%84/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1285,384 +1757,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://ethanwhite-chen.github.io/2023/05/21/CopyOnWriteArrayList%E7%9A%84%E6%9C%BA%E5%88%B6%E5%A6%82%E4%BD%95%E4%BF%9D%E8%AF%81%E8%AF%BB%E5%8F%96%E5%88%B0%E6%95%B0%E6%8D%AE%E6%98%AF%E6%9C%80%E6%96%B0%E7%9A%84%EF%BC%9F/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="EthanWhite-Chen">
-      <meta itemprop="description" content="不积跬步无以至千里，不积小流无以成江河。分享点滴成长，就有光明未来！">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="ykchen的个人博客">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/05/21/CopyOnWriteArrayList%E7%9A%84%E6%9C%BA%E5%88%B6%E5%A6%82%E4%BD%95%E4%BF%9D%E8%AF%81%E8%AF%BB%E5%8F%96%E5%88%B0%E6%95%B0%E6%8D%AE%E6%98%AF%E6%9C%80%E6%96%B0%E7%9A%84%EF%BC%9F/" class="post-title-link" itemprop="url">CopyOnWriteArrayList的机制如何保证读取到数据是最新的？</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-              
-
-              <time title="Created: 2023-05-21 14:37:16 / Modified: 14:47:25" itemprop="dateCreated datePublished" datetime="2023-05-21T14:37:16+08:00">2023-05-21</time>
-            </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/JAVA/" itemprop="url" rel="index"><span itemprop="name">JAVA</span></a>
-                </span>
-            </span>
-
-          <br>
-            <span class="post-meta-item" title="Symbols count in article">
-              <span class="post-meta-item-icon">
-                <i class="far fa-file-word"></i>
-              </span>
-                <span class="post-meta-item-text">Symbols count in article: </span>
-              <span>4.3k</span>
-            </span>
-            <span class="post-meta-item" title="Reading time">
-              <span class="post-meta-item-icon">
-                <i class="far fa-clock"></i>
-              </span>
-                <span class="post-meta-item-text">Reading time &asymp;</span>
-              <span>8 mins.</span>
-            </span>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>CopyOnWriteArrayList是写时复制一个数组，读取的还是在原数组，那如何保证读取到数据是最新的</p>
-<hr>
-<h1 id="结论"><a href="#结论" class="headerlink" title="结论"></a>结论</h1><p>很可惜，<strong>不能保证读到的数据一定是最新的</strong>，因为CopyOnWriteArrayList是弱数据一致性，具体的原因可以看一下这篇文章。</p>
-<p>这篇文章想来跟大家来探讨一下，在Java中已经提供了并发安全的集合，为什么有的场景还需要使用<a target="_blank" rel="noopener" href="https://www.zhihu.com/search?q=%E8%AF%BB%E5%86%99%E9%94%81&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra=%7B%22sourceType%22:%22answer%22,%22sourceId%22:2441509719%7D">读写锁</a>，直接用并发安全的集合难道不行么？</p>
-<p>在java中，并发安全的集合有很多，这里我就选用常见的CopyOnWriteArrayList为例，解决上述问题的同时，也来说明一下读写锁的价值到底提现在哪。</p>
-<h1 id="源码分析"><a href="#源码分析" class="headerlink" title="源码分析"></a>源码分析</h1><p><em>CopyOnWriteArrayList核心源码分析</em>*</p>
-<p>接下来我们分析一下CopyOnWriteArrayList核心的增删改查的方法</p>
-<p><a target="_blank" rel="noopener" href="https://www.zhihu.com/search?q=%E6%88%90%E5%91%98%E5%8F%98%E9%87%8F&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra=%7B%22sourceType%22:%22answer%22,%22sourceId%22:2441509719%7D">成员变量</a></p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//独占锁</span></span><br><span class="line"><span class="keyword">final</span> <span class="keyword">transient</span> <span class="type">ReentrantLock</span> <span class="variable">lock</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">ReentrantLock</span>();</span><br><span class="line"><span class="comment">//底层用来存放元素的数组</span></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">transient</span> <span class="keyword">volatile</span> Object[] array;</span><br></pre></td></tr></table></figure>
-
-<p>add方法：往集合中添加某个元素</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="type">boolean</span> <span class="title function_">add</span><span class="params">(E e)</span> &#123;</span><br><span class="line">        <span class="keyword">final</span> <span class="type">ReentrantLock</span> <span class="variable">lock</span> <span class="operator">=</span> <span class="built_in">this</span>.lock;</span><br><span class="line">        lock.lock();</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            Object[] elements = getArray();</span><br><span class="line">            <span class="type">int</span> <span class="variable">len</span> <span class="operator">=</span> elements.length;</span><br><span class="line">            Object[] newElements = Arrays.copyOf(elements, len + <span class="number">1</span>);</span><br><span class="line">            newElements[len] = e;</span><br><span class="line">            setArray(newElements);</span><br><span class="line">            <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">        &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">            lock.unlock();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
-
-<p>add操作先通过lock加锁，保证同一时刻最多只有一个线程可以操作。加锁成功获取到成员变量的数据，然后拷贝<a target="_blank" rel="noopener" href="https://www.zhihu.com/search?q=%E6%88%90%E5%91%98%E5%8F%98%E9%87%8F%E6%95%B0%E7%BB%84&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra=%7B%22sourceType%22:%22answer%22,%22sourceId%22:2441509719%7D">成员变量数组</a>的元素到新的数组，再基于新的数据来添加元素，最后将新拷贝的数组通过setArray来替换旧的成员变量的数组。</p>
-<p>remove方法：移除集合中的某个元素</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> E <span class="title function_">remove</span><span class="params">(<span class="type">int</span> index)</span> &#123;</span><br><span class="line">        <span class="keyword">final</span> <span class="type">ReentrantLock</span> <span class="variable">lock</span> <span class="operator">=</span> <span class="built_in">this</span>.lock;</span><br><span class="line">        lock.lock();</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            Object[] elements = getArray();</span><br><span class="line">            <span class="type">int</span> <span class="variable">len</span> <span class="operator">=</span> elements.length;</span><br><span class="line">            <span class="type">E</span> <span class="variable">oldValue</span> <span class="operator">=</span> get(elements, index);</span><br><span class="line">            <span class="type">int</span> <span class="variable">numMoved</span> <span class="operator">=</span> len - index - <span class="number">1</span>;</span><br><span class="line">            <span class="keyword">if</span> (numMoved == <span class="number">0</span>)</span><br><span class="line">                setArray(Arrays.copyOf(elements, len - <span class="number">1</span>));</span><br><span class="line">            <span class="keyword">else</span> &#123;</span><br><span class="line">                Object[] newElements = <span class="keyword">new</span> <span class="title class_">Object</span>[len - <span class="number">1</span>];</span><br><span class="line">                System.arraycopy(elements, <span class="number">0</span>, newElements, <span class="number">0</span>, index);</span><br><span class="line">                System.arraycopy(elements, index + <span class="number">1</span>, newElements, index,</span><br><span class="line">                                 numMoved);</span><br><span class="line">                setArray(newElements);</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">return</span> oldValue;</span><br><span class="line">        &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">            lock.unlock();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
-
-<p><a target="_blank" rel="noopener" href="https://www.zhihu.com/search?q=remove&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra=%7B%22sourceType%22:%22answer%22,%22sourceId%22:2441509719%7D">remove</a>操作也要先获取到锁。它先是取出对应数组下标的旧元素，然后新建了一个原数组长度减1的新数组，将除了被移除的元素之外，剩余的元素拷贝到新的数组，最后再通过setArray替换旧的成员变量的数组。</p>
-<p>set方法：将集合中指定位置的元素替换成新的元素</p>
-<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">public E set(int index, E element) &#123;</span><br><span class="line">        final ReentrantLock lock = this.lock;</span><br><span class="line">        lock.lock();</span><br><span class="line">        try &#123;</span><br><span class="line">            Object[] elements = getArray();</span><br><span class="line">            E oldValue = get(elements, index);</span><br><span class="line"></span><br><span class="line">            if (oldValue != element) &#123;</span><br><span class="line">                int len = elements.length;</span><br><span class="line">                Object[] newElements = Arrays.copyOf(elements, len);</span><br><span class="line">                newElements[index] = element;</span><br><span class="line">                setArray(newElements);</span><br><span class="line">            &#125; else &#123;</span><br><span class="line">                // Not quite a no-op; ensures volatile write semantics</span><br><span class="line">                setArray(elements);</span><br><span class="line">            &#125;</span><br><span class="line">            return oldValue;</span><br><span class="line">        &#125; finally &#123;</span><br><span class="line">            lock.unlock();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
-
-<p>set方法跟add，remove操作一样得先获取到锁才能继续执行。将原数组的原有元素拷贝到新的数组上，在新的数组完成数据的替换，最后也是通过setArray替换旧的成员变量的数组。</p>
-<p>size方法：获取集合中元素的个数</p>
-<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">public int size() &#123;</span><br><span class="line">        return getArray().length;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>size方法操作很简单，就是简单地返回一下当前数组的长度。</p>
-<p><a target="_blank" rel="noopener" href="https://www.zhihu.com/search?q=%E8%BF%AD%E4%BB%A3%E5%99%A8&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra=%7B%22sourceType%22:%22answer%22,%22sourceId%22:2441509719%7D">迭代器</a>的构造</p>
-<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">public Iterator&lt;E&gt; iterator() &#123;</span><br><span class="line">        return new COWIterator&lt;E&gt;(getArray(), 0);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>构造COWIterator的时候传入当前数组的对象，然后基于当前数组来遍历，也不需要加锁。</p>
-<h1 id="优缺点分析"><a href="#优缺点分析" class="headerlink" title="优缺点分析"></a>优缺点分析</h1><p>讲完CopyOnWriteArrayList源码，我们可以看出CopyOnWriteArrayList的核心原理就是在对数组进行增删改的时候全部都是先加独占锁，然后对原有的数组进行拷贝，然后基于新复制的数组进行操作，最后将这个新的数组替换成员变量的数组；而对于读的操作来说，都是不加锁的，是基于当前成员变量的数组的这一时刻的快照来读的。其实CopyOnWriteArrayList是基于一种写时复制的思想，写的时候基于新拷贝的数组来操作，之后再赋值给成员变量，读的时候是原有的数组，这样读写其实就是不是同一个数组，这样就避免了读写冲突的情况，这其实也体现了一种<a target="_blank" rel="noopener" href="https://www.zhihu.com/search?q=%E8%AF%BB%E5%86%99%E5%88%86%E7%A6%BB&search_source=Entity&hybrid_search_source=Entity&hybrid_search_extra=%7B%22sourceType%22:%22answer%22,%22sourceId%22:2441509719%7D">读写分离</a>的思想，读写操作的是不同的数组。</p>
-<p><strong>CopyOnWriteArrayList适用场景</strong></p>
-<p>接下来我们来思考一下，CopyOnWriteArrayList适合使用在什么样的场景中。通过上面源码的分析，我们可以看出，所有的写操作，包括增删改都需要加同一把独占锁，所以同时只允许一个线程对数组进行拷贝赋值的操作，多线程并发情况下所有的操作都是串行执行的，势必会导致并发能力降低，同时每次操作都涉及到了数组的拷贝，性能也不太好；而所有的读操作都不需要加锁，所以同一时间可以允许大量的线程同时读，并发性能高。所以综上我们可以得出一个结论，那就是CopyOnWriteArrayList适合读多写少的场景。</p>
-<p><strong>CopyOnWriteArrayList的局限性</strong></p>
-<p>说完CopyOnWriteArrayList，我们来想一想它有没有什么缺点。看起来CopyOnWriteArrayList除了写的并发性能差点，好像没有什么缺点了。的确，单从性能来看，确实是这种情况，但是，从数据一致性的角度来看，CopyOnWriteArrayList的数据一致性能力较弱，属于数据弱一致性。所谓的弱一致性，你可以这么理解，在某一个时刻，读到的数据并不是当前这一时刻最新的数据。</p>
-<p>就拿CopyOnWriteArrayList举例来说，当有个线程A正在调用add方法来添加元素，此时已经完成了数组的拷贝，并且也将元素添加到数组中，但是还没有将新的数组赋值给成员变量，此时，另一个线程B来调用CopyOnWriteArrayList的size方法，来读取集合中元素的个数，那么此时读到的元素个数其实是不包括线程A要添加的元素，因为线程A并没有将新的数组赋值给成员变量，这就导致了线程B读到的数据不是最新的数据，也就是跟实际的数据不一致。</p>
-<p>所以，从上面我们可以看出，CopyOnWriteArrayList对于数据一致性的保证，还是比较弱的。其实不光是CopyOnWriteArrayList，其实Java中的很多集合，队列的实现对于数据一致性的保证都比较弱。</p>
-<p><strong>如何来保证数据的强一致性</strong></p>
-<p>那么有什么好的办法可以保证数据的强一致性么？当然，保证并发安全，加锁就可以完成，但是加什么锁可以保证数据读写安全和数据一致性，其实最简单粗暴的方法就是对所有的读写都加上同一把独占锁，这样保证所有的读写操作都是串行执行，那么读的时候，其他线程一定不能写，那么读的一定是最新的数据。</p>
-<p>如果真的这么去加独占锁，的确能够保证读写安全，但是性能却会很差，这也是为什么CopyOnWriteArrayList的读不加锁的原因，其实CopyOnWriteArrayList在设计的时候，就是降低数据一致性来换取读的性能。</p>
-<p>那有没有什么折中的方法，既能保证读的性能不差，又能保证数据强一致性呢。这时就可以用读写锁来实现。所谓的读写锁，就是写的时候，其他线程不能写也不能读，读的时候，其他线程能读，但是不能写。也就是写写、读写互斥，但是读读不互斥。基于这种方式，就能保证读的时候，一定没有人在写，这样读到的数据就一定是最新的，同时也能保证其他线程也能读，不会出现上面举例的那种情况了，也就能保证数据的强一致性。读写锁相比独占锁而言，大大提高了读的并发能力，但是写的时候不能读，相比于CopyOnWriteArrayList而言，读的并发能力有所降低，这可能就是鱼（并发性能）和熊掌（数据一致性）不可兼得吧。</p>
-<p>Java中也提供了读写锁的实现，ReentrantReadWriteLock，底层是基于AQS来实现的。有兴趣的小伙伴可以翻一下源码，看看是如何实现的，这里就不再剖析源码了。</p>
-<p><strong>总结</strong></p>
-<p>好了，通过这篇文章，想必大家知道为什么有并发安全的集合之后，还需要读写锁的原因，因为很多并发安全的集合对于数据一致性的保证是比较弱的，一旦遇到对于数据一致性要求比较高的场景，一些并发安全的集合就不适用了；同时为了避免独占锁带来的性能问题，可以选择读写锁来保证读的并发能力。小伙伴们在实际应用中需要根据应用场景来灵活地选择使用并发安全的集合、读写锁或者是独占锁，其实永远没有最好的选择，只有更好的选择。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://ethanwhite-chen.github.io/2023/05/21/%E5%A6%82%E4%BD%95%E5%9C%A8%E4%B8%8D%E9%80%82%E7%94%A8%E9%94%81%E7%9A%84%E6%83%85%E5%86%B5%E4%B8%8B%E8%A7%A3%E5%86%B3%E9%AB%98%E5%B9%B6%E5%8F%91%E9%97%AE%E9%A2%98%EF%BC%9F/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="EthanWhite-Chen">
-      <meta itemprop="description" content="不积跬步无以至千里，不积小流无以成江河。分享点滴成长，就有光明未来！">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="ykchen的个人博客">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/05/21/%E5%A6%82%E4%BD%95%E5%9C%A8%E4%B8%8D%E9%80%82%E7%94%A8%E9%94%81%E7%9A%84%E6%83%85%E5%86%B5%E4%B8%8B%E8%A7%A3%E5%86%B3%E9%AB%98%E5%B9%B6%E5%8F%91%E9%97%AE%E9%A2%98%EF%BC%9F/" class="post-title-link" itemprop="url">如何在不适用锁的情况下解决高并发问题？</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-              
-
-              <time title="Created: 2023-05-21 13:34:40 / Modified: 15:01:56" itemprop="dateCreated datePublished" datetime="2023-05-21T13:34:40+08:00">2023-05-21</time>
-            </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E9%9D%A2%E8%AF%95%E9%97%AE%E9%A2%98/" itemprop="url" rel="index"><span itemprop="name">面试问题</span></a>
-                </span>
-            </span>
-
-          <br>
-            <span class="post-meta-item" title="Symbols count in article">
-              <span class="post-meta-item-icon">
-                <i class="far fa-file-word"></i>
-              </span>
-                <span class="post-meta-item-text">Symbols count in article: </span>
-              <span>4.8k</span>
-            </span>
-            <span class="post-meta-item" title="Reading time">
-              <span class="post-meta-item-icon">
-                <i class="far fa-clock"></i>
-              </span>
-                <span class="post-meta-item-text">Reading time &asymp;</span>
-              <span>9 mins.</span>
-            </span>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>问题的原话是：如何在实际业务实现中不使用锁解决高并发问题，有没有相关的解决办法？</p>
-<hr>
-<h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>除了使用 synchronized、Lock 加锁之外，Java 中还有很多不需要加锁就可以解决并发问题的工具类</p>
-<img src="/2023/05/21/%E5%A6%82%E4%BD%95%E5%9C%A8%E4%B8%8D%E9%80%82%E7%94%A8%E9%94%81%E7%9A%84%E6%83%85%E5%86%B5%E4%B8%8B%E8%A7%A3%E5%86%B3%E9%AB%98%E5%B9%B6%E5%8F%91%E9%97%AE%E9%A2%98%EF%BC%9F/05/21/%E5%A6%82%E4%BD%95%E5%9C%A8%E4%B8%8D%E9%80%82%E7%94%A8%E9%94%81%E7%9A%84%E6%83%85%E5%86%B5%E4%B8%8B%E8%A7%A3%E5%86%B3%E9%AB%98%E5%B9%B6%E5%8F%91%E9%97%AE%E9%A2%98%EF%BC%9F/v2-b732e0e46b87abad6ff059a454e5e825_720w.png" class title="img">
-
-<h1 id="原子工具类"><a href="#原子工具类" class="headerlink" title="原子工具类"></a>原子工具类</h1><p>JDK 1.8 中， java.util.concurrent.atomic 包下类都是原子类，原子类都是基于 sun.misc.Unsafe 实现的。</p>
-<ul>
-<li>CPU 为了解决并发问题，提供了 CAS 指令，全称 Compare And Swap，即比较并交互</li>
-<li>CAS 指令需要 3 个参数，变量、比较值、新值。当变量的当前值与比较值相等时，才把变量更新为新值</li>
-<li>CAS 是一条 CPU 指令，由 CPU 硬件级别上保证原子性</li>
-<li>java.util.concurrent.atomic 包中的原子分为：原子性基本数据类型、原子性对象引用类型、原子性数组、原子性对象属性更新器和原子性累加器</li>
-</ul>
-<p><strong>原子性基本数据类型</strong>：AtomicBoolean、AtomicInteger、AtomicLong</p>
-<p><strong>原子性对象引用类型</strong>：AtomicReference、AtomicStampedReference、AtomicMarkableReference</p>
-<p><strong>原子性数组</strong>：AtomicIntegerArray、AtomicLongArray、AtomicReferenceArray</p>
-<p><strong>原子性对象属性更新</strong>：AtomicIntegerFieldUpdater、AtomicLongFieldUpdater、 AtomicReferenceFieldUpdater</p>
-<p><strong>原子性累加器</strong>：DoubleAccumulator、DoubleAdder、LongAccumulator、LongAdder</p>
-<p>修改我们之前测试原子性问题的类，使用 AtomicInteger 的简单例子</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> constxiong.concurrency.a026;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> java.util.concurrent.atomic.AtomicInteger;</span><br><span class="line"></span><br><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * 测试 原子类 AtomicInteger</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">TestAtomicInteger</span> &#123;</span><br><span class="line"></span><br><span class="line"> <span class="comment">// 计数变量</span></span><br><span class="line"> <span class="keyword">static</span> <span class="keyword">volatile</span> <span class="type">AtomicInteger</span> <span class="variable">count</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">AtomicInteger</span>(<span class="number">0</span>);</span><br><span class="line"></span><br><span class="line"> <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> InterruptedException &#123;</span><br><span class="line"> <span class="comment">// 线程 1 给 count 加 10000</span></span><br><span class="line"> <span class="type">Thread</span> <span class="variable">t1</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Thread</span>(() -&gt; &#123;</span><br><span class="line"> <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">j</span> <span class="operator">=</span> <span class="number">0</span>; j &lt;<span class="number">10000</span>; j++) &#123;</span><br><span class="line"> count.incrementAndGet();</span><br><span class="line"> &#125;</span><br><span class="line"> System.out.println(<span class="string">&quot;thread t1 count 加 10000 结束&quot;</span>);</span><br><span class="line"> &#125;);</span><br><span class="line"></span><br><span class="line"> <span class="comment">// 线程 2 给 count 加 10000</span></span><br><span class="line"> <span class="type">Thread</span> <span class="variable">t2</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Thread</span>(() -&gt; &#123;</span><br><span class="line"> <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">j</span> <span class="operator">=</span> <span class="number">0</span>; j &lt;<span class="number">10000</span>; j++) &#123;</span><br><span class="line"> count.incrementAndGet();</span><br><span class="line"> &#125;</span><br><span class="line"> System.out.println(<span class="string">&quot;thread t2 count 加 10000 结束&quot;</span>);</span><br><span class="line"> &#125;);</span><br><span class="line"></span><br><span class="line"> <span class="comment">// 启动线程 1</span></span><br><span class="line"> t1.start();</span><br><span class="line"> <span class="comment">// 启动线程 2</span></span><br><span class="line"> t2.start();</span><br><span class="line"></span><br><span class="line"> <span class="comment">// 等待线程 1 执行完成</span></span><br><span class="line"> t1.join();</span><br><span class="line"> <span class="comment">// 等待线程 2 执行完成</span></span><br><span class="line"> t2.join();</span><br><span class="line"></span><br><span class="line"> <span class="comment">// 打印 count 变量</span></span><br><span class="line"> System.out.println(count.get());</span><br><span class="line"> &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>打印结果如预期</p>
-<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">thread t2 count 加 10000 结束</span><br><span class="line">thread t1 count 加 10000 结束</span><br><span class="line">20000</span><br></pre></td></tr></table></figure>
-
-<h1 id="线程本地存储"><a href="#线程本地存储" class="headerlink" title="线程本地存储"></a>线程本地存储</h1><ul>
-<li>java.lang.ThreadLocal 类用于线程本地化存储。</li>
-<li>线程本地化存储，就是为每一个线程创建一个变量，只有本线程可以在该变量中查看和修改值。</li>
-<li>典型的使用例子就是，spring 在处理数据库事务问题的时候，就用了 ThreadLocal 为每个线程存储了各自的数据库连接 Connection。</li>
-<li>使用 ThreadLocal 要注意，在不使用该变量的时候，一定要调用 remove() 方法移除变量，否则可能造成内存泄漏的问题。</li>
-</ul>
-<p>示例</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line">javascript复制代码<span class="keyword">package</span> constxiong.concurrency.a026;</span><br><span class="line"></span><br><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * 测试 原子类 AtomicInteger</span></span><br><span class="line"><span class="comment"> * </span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">TestThreadLocal</span> &#123;</span><br><span class="line"></span><br><span class="line"> <span class="comment">// 线程本地存储变量</span></span><br><span class="line"> <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> ThreadLocal&lt;Integer&gt; THREAD_LOCAL_NUM = <span class="keyword">new</span> <span class="title class_">ThreadLocal</span>&lt;Integer&gt;() &#123;</span><br><span class="line"> <span class="meta">@Override</span></span><br><span class="line"> <span class="keyword">protected</span> Integer <span class="title function_">initialValue</span><span class="params">()</span> &#123;<span class="comment">//初始值</span></span><br><span class="line"> <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line"> &#125;</span><br><span class="line"> &#125;;</span><br><span class="line"></span><br><span class="line"> <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> &#123;</span><br><span class="line"> <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">i</span> <span class="operator">=</span> <span class="number">0</span>; i &lt;<span class="number">3</span>; i++) &#123;<span class="comment">// 启动三个线程</span></span><br><span class="line"> <span class="type">Thread</span> <span class="variable">t</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Thread</span>() &#123;</span><br><span class="line"> <span class="meta">@Override</span></span><br><span class="line"> <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">run</span><span class="params">()</span> &#123;</span><br><span class="line"> add10ByThreadLocal();</span><br><span class="line"> &#125;</span><br><span class="line"> &#125;;</span><br><span class="line"> t.start();</span><br><span class="line"> &#125;</span><br><span class="line"> &#125;</span><br><span class="line"></span><br><span class="line"> <span class="comment">/**</span></span><br><span class="line"><span class="comment"> * 线程本地存储变量加 5</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"> <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">add10ByThreadLocal</span><span class="params">()</span> &#123;</span><br><span class="line"> <span class="keyword">try</span> &#123;</span><br><span class="line"> <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">i</span> <span class="operator">=</span> <span class="number">0</span>; i &lt;<span class="number">5</span>; i++) &#123;</span><br><span class="line"> <span class="type">Integer</span> <span class="variable">n</span> <span class="operator">=</span> THREAD_LOCAL_NUM.get();</span><br><span class="line"> n += <span class="number">1</span>;</span><br><span class="line"> THREAD_LOCAL_NUM.set(n);</span><br><span class="line"> System.out.println(Thread.currentThread().getName() + <span class="string">&quot; : ThreadLocal num=&quot;</span> + n);</span><br><span class="line"> &#125;</span><br><span class="line"> &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line"> THREAD_LOCAL_NUM.remove();<span class="comment">// 将变量移除</span></span><br><span class="line"> &#125;</span><br><span class="line"> &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>每个线程最后一个值都打印到了 5</p>
-<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">javascript复制代码<span class="title class_">Thread</span>-<span class="number">0</span> : <span class="title class_">ThreadLocal</span> num=<span class="number">1</span></span><br><span class="line"><span class="title class_">Thread</span>-<span class="number">2</span> : <span class="title class_">ThreadLocal</span> num=<span class="number">1</span></span><br><span class="line"><span class="title class_">Thread</span>-<span class="number">1</span> : <span class="title class_">ThreadLocal</span> num=<span class="number">1</span></span><br><span class="line"><span class="title class_">Thread</span>-<span class="number">2</span> : <span class="title class_">ThreadLocal</span> num=<span class="number">2</span></span><br><span class="line"><span class="title class_">Thread</span>-<span class="number">0</span> : <span class="title class_">ThreadLocal</span> num=<span class="number">2</span></span><br><span class="line"><span class="title class_">Thread</span>-<span class="number">2</span> : <span class="title class_">ThreadLocal</span> num=<span class="number">3</span></span><br><span class="line"><span class="title class_">Thread</span>-<span class="number">0</span> : <span class="title class_">ThreadLocal</span> num=<span class="number">3</span></span><br><span class="line"><span class="title class_">Thread</span>-<span class="number">1</span> : <span class="title class_">ThreadLocal</span> num=<span class="number">2</span></span><br><span class="line"><span class="title class_">Thread</span>-<span class="number">0</span> : <span class="title class_">ThreadLocal</span> num=<span class="number">4</span></span><br><span class="line"><span class="title class_">Thread</span>-<span class="number">2</span> : <span class="title class_">ThreadLocal</span> num=<span class="number">4</span></span><br><span class="line"><span class="title class_">Thread</span>-<span class="number">0</span> : <span class="title class_">ThreadLocal</span> num=<span class="number">5</span></span><br><span class="line"><span class="title class_">Thread</span>-<span class="number">1</span> : <span class="title class_">ThreadLocal</span> num=<span class="number">3</span></span><br><span class="line"><span class="title class_">Thread</span>-<span class="number">2</span> : <span class="title class_">ThreadLocal</span> num=<span class="number">5</span></span><br><span class="line"><span class="title class_">Thread</span>-<span class="number">1</span> : <span class="title class_">ThreadLocal</span> num=<span class="number">4</span></span><br><span class="line"><span class="title class_">Thread</span>-<span class="number">1</span> : <span class="title class_">ThreadLocal</span> num=<span class="number">5</span></span><br></pre></td></tr></table></figure>
-
-<h1 id="copy-on-write"><a href="#copy-on-write" class="headerlink" title="copy-on-write"></a>copy-on-write</h1><ul>
-<li>根据英文名称可以看出，需要写时复制，体现的是一种延时策略。</li>
-<li>Java 中的 copy-on-write 容器包括：CopyOnWriteArrayList、CopyOnWriteArraySet。</li>
-<li>涉及到数组的全量复制，所以也比较耗内存，在写少的情况下使用比较适合。</li>
-</ul>
-<p>简单的 CopyOnWriteArrayList 的示例，<strong>这里只是说明 CopyOnWriteArrayList 怎么用，并且是线程安全的。这个场景并不适合使用 CopyOnWriteArrayList，因为写多读少</strong>。</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br></pre></td><td class="code"><pre><span class="line">javascript复制代码<span class="keyword">package</span> constxiong.concurrency.a026;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> java.util.ArrayList;</span><br><span class="line"><span class="keyword">import</span> java.util.List;</span><br><span class="line"><span class="keyword">import</span> java.util.Random;</span><br><span class="line"><span class="keyword">import</span> java.util.concurrent.CopyOnWriteArrayList;</span><br><span class="line"></span><br><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * 测试 copy-on-write</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@author</span> ConstXiong</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">TestCopyOnWrite</span> &#123;</span><br><span class="line"></span><br><span class="line"> <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="type">Random</span> <span class="variable">R</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Random</span>();</span><br><span class="line"> </span><br><span class="line"> <span class="keyword">private</span> <span class="keyword">static</span> CopyOnWriteArrayList&lt;Integer&gt; cowList = <span class="keyword">new</span> <span class="title class_">CopyOnWriteArrayList</span>&lt;Integer&gt;();</span><br><span class="line"><span class="comment">// private static ArrayList&lt;Integer&gt; cowList = new ArrayList&lt;Integer&gt;();</span></span><br><span class="line"> </span><br><span class="line"> <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> InterruptedException &#123;</span><br><span class="line"> List&lt;Thread&gt; threadList = <span class="keyword">new</span> <span class="title class_">ArrayList</span>&lt;Thread&gt;();</span><br><span class="line"> <span class="comment">//启动 1000 个线程，向 cowList 添加 5 个随机整数</span></span><br><span class="line"> <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">i</span> <span class="operator">=</span> <span class="number">0</span>; i &lt;<span class="number">1000</span>; i++) &#123;</span><br><span class="line"> <span class="type">Thread</span> <span class="variable">t</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Thread</span>(() -&gt; &#123;</span><br><span class="line"> <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">j</span> <span class="operator">=</span> <span class="number">0</span>; j &lt;<span class="number">5</span>; j++) &#123;</span><br><span class="line"> <span class="comment">//休眠 10 毫秒，让线程同时向 cowList 添加整数，引出并发问题</span></span><br><span class="line"> <span class="keyword">try</span> &#123;</span><br><span class="line"> Thread.sleep(<span class="number">10</span>);</span><br><span class="line"> &#125; <span class="keyword">catch</span> (InterruptedException e) &#123;</span><br><span class="line"> e.printStackTrace();</span><br><span class="line"> &#125;</span><br><span class="line"> cowList.add(R.nextInt(<span class="number">100</span>));</span><br><span class="line"> &#125;</span><br><span class="line"> &#125;) ;</span><br><span class="line"> t.start();</span><br><span class="line"> threadList.add(t);</span><br><span class="line"> &#125;</span><br><span class="line"> </span><br><span class="line"> <span class="keyword">for</span> (Thread t : threadList) &#123;</span><br><span class="line"> t.join();</span><br><span class="line"> &#125;</span><br><span class="line"> System.out.println(cowList.size());</span><br><span class="line"> &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>打印结果</p>
-<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">javascript</span><br><span class="line">复制代码<span class="number">5000</span></span><br></pre></td></tr></table></figure>
-
-<p>如果把</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">javascript</span><br><span class="line">复制代码<span class="keyword">private</span> <span class="keyword">static</span> CopyOnWriteArrayList&lt;Integer&gt; cowList = <span class="keyword">new</span> <span class="title class_">CopyOnWriteArrayList</span>&lt;Integer&gt;();</span><br></pre></td></tr></table></figure>
-
-<p>改为</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">javascript</span><br><span class="line">复制代码<span class="keyword">private</span> <span class="keyword">static</span> ArrayList&lt;Integer&gt; cowList = <span class="keyword">new</span> <span class="title class_">ArrayList</span>&lt;Integer&gt;();</span><br></pre></td></tr></table></figure>
-
-<p>打印结果就是小于 5000 的整数了</p>
-<p><strong>注意：高并发情况下CopyOnWrite获取到的可能不是最新的值</strong>，具体可以参考下另外一篇文章<a href="CopyOnWriteArrayList%E7%9A%84%E6%9C%BA%E5%88%B6%E5%A6%82%E4%BD%95%E4%BF%9D%E8%AF%81%E8%AF%BB%E5%8F%96%E5%88%B0%E6%95%B0%E6%8D%AE%E6%98%AF%E6%9C%80%E6%96%B0%E7%9A%84%EF%BC%9F.md">《CopyOnWriteArrayList的机制如何保证读取到数据是最新的？》</a></p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://ethanwhite-chen.github.io/2023/05/21/hexo%E5%8D%9A%E5%AE%A2%E4%B8%AD%E6%8F%92%E5%85%A5%E5%9B%BE%E7%89%87%E5%A4%B1%E8%B4%A5-%E8%A7%A3%E5%86%B3%E6%80%9D%E8%B7%AF%E5%8F%8A%E4%B8%AA%E4%BA%BA%E6%9C%80%E7%BB%88%E8%A7%A3%E5%86%B3%E5%8A%9E%E6%B3%95/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="EthanWhite-Chen">
-      <meta itemprop="description" content="不积跬步无以至千里，不积小流无以成江河。分享点滴成长，就有光明未来！">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="ykchen的个人博客">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/05/21/hexo%E5%8D%9A%E5%AE%A2%E4%B8%AD%E6%8F%92%E5%85%A5%E5%9B%BE%E7%89%87%E5%A4%B1%E8%B4%A5-%E8%A7%A3%E5%86%B3%E6%80%9D%E8%B7%AF%E5%8F%8A%E4%B8%AA%E4%BA%BA%E6%9C%80%E7%BB%88%E8%A7%A3%E5%86%B3%E5%8A%9E%E6%B3%95/" class="post-title-link" itemprop="url">hexo博客中插入图片失败--解决思路及个人最终解决办法</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-              
-
-              <time title="Created: 2023-05-21 00:41:46 / Modified: 01:43:28" itemprop="dateCreated datePublished" datetime="2023-05-21T00:41:46+08:00">2023-05-21</time>
-            </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%8D%9A%E5%AE%A2%E6%90%AD%E5%BB%BA/" itemprop="url" rel="index"><span itemprop="name">博客搭建</span></a>
-                </span>
-            </span>
-
-          <br>
-            <span class="post-meta-item" title="Symbols count in article">
-              <span class="post-meta-item-icon">
-                <i class="far fa-file-word"></i>
-              </span>
-                <span class="post-meta-item-text">Symbols count in article: </span>
-              <span>2.6k</span>
-            </span>
-            <span class="post-meta-item" title="Reading time">
-              <span class="post-meta-item-icon">
-                <i class="far fa-clock"></i>
-              </span>
-                <span class="post-meta-item-text">Reading time &asymp;</span>
-              <span>5 mins.</span>
-            </span>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>今天晚上花了大概2个小时在晚上搜寻各种hexo博客插入图片无法显示的解决办法，很多方法是重叠的，所以真正不同的解决方法并不多。</p>
-<p>昨天晚上和今天晚上一共花了2个小时在网上找各种hexo博客插入图片无法显示的解决办法，很多方法是重叠的，且有的方法已经因为hexo版本升级而不可用，所以真正不同的解决方法并不多。其中很多博文的内容几乎一摸一样，没有实际的用处，且不考虑时间效应，直接复制粘贴，很浪费阅读者的时间。</p>
-<p>本文的问题解决时间为2023-05-21，hexo版本为6.3.0。本回答受该博客启发较大，感谢各位先驱大佬的贡献。</p>
-<hr>
-<h2 id="解决方案"><a href="#解决方案" class="headerlink" title="解决方案"></a>解决方案</h2><h3 id="创建图片资源文件夹"><a href="#创建图片资源文件夹" class="headerlink" title="创建图片资源文件夹"></a>创建图片资源文件夹</h3><p>网上有关的解决方式几乎很大一部分会提到这一点：<strong>将_config.yml 文件中的post_asset_folder 选项设为 true 来打开</strong>。事实上这正是hexo官方文档给出的解决方案之一中的一个步骤。仔细阅读后会发现如下几点：</p>
-<p>该操作的作用就是在使用hexo new xxx指令新建博文时，在相同路径下同步创建一个xxx文件夹，而xxx文件夹的作用就是用来存放图片资源；那么直接新建xxx.md再新建xxx文件夹，这种操作的最终效果和使用hexo new xxx指令新建博文的效果一样吗？经过实测，是一样的。基于以上，直接总结一下：</p>
-<p>新建博文可以不用hexo new xxx指令，我较为推荐直接新建文件和文件夹的方式，只要达到一个md文件，一个同名文件夹的效果即可；<strong>【将_config.yml 文件中的post_asset_folder 选项设为 true 】</strong>是必须的！理论上既然没用hexo new xxx指令，文件夹也是我自己新建的，这一步设置的意义似乎并不存在，但是后文介绍的插件必须在post_asset_folder 选项设为 true的情况下才能生效——本人亲测，大家记住这么设置即可！</p>
-<h3 id="typora中图像设置"><a href="#typora中图像设置" class="headerlink" title="typora中图像设置"></a>typora中图像设置</h3><p>一般来说，大家会现在typora里写好md格式的博客，然后通过hexo clean、hexo g、hexo s进行一下本地测试，确认无误后再发布到远端。</p>
-<p>暂且不说hexo博客的图片插入是个问题，我相信当初单纯利用typora做笔记时，图片文件的管理就让很多人头疼过，typora官方似乎也意识到这个问题，所以偏好设置中图像是专门的一项，提供了很多选择。</p>
-<p><img src="/2023/05/21/hexo%E5%8D%9A%E5%AE%A2%E4%B8%AD%E6%8F%92%E5%85%A5%E5%9B%BE%E7%89%87%E5%A4%B1%E8%B4%A5-%E8%A7%A3%E5%86%B3%E6%80%9D%E8%B7%AF%E5%8F%8A%E4%B8%AA%E4%BA%BA%E6%9C%80%E7%BB%88%E8%A7%A3%E5%86%B3%E5%8A%9E%E6%B3%95/20200707222506636.png" alt="typora插图"></p>
-<p>我相信大多数同学写md时的图片很多可能是直接截图或者在其他地方copy的，然后在typora中直接粘贴就ok了。但是这么做之前最好把typora插入图片时采取何种操作配置好，否则md文件和图片相隔十万八千里，后续一旦移动md文件图片就识别不出来，相信大家用过typora都深有体会。</p>
-<p>所以接下来讲一下typora如何设置。直接给结论：</p>
-<p><img src="/2023/05/21/hexo%E5%8D%9A%E5%AE%A2%E4%B8%AD%E6%8F%92%E5%85%A5%E5%9B%BE%E7%89%87%E5%A4%B1%E8%B4%A5-%E8%A7%A3%E5%86%B3%E6%80%9D%E8%B7%AF%E5%8F%8A%E4%B8%AA%E4%BA%BA%E6%9C%80%E7%BB%88%E8%A7%A3%E5%86%B3%E5%8A%9E%E6%B3%95/20200707224416296.png" alt="在这里插入图片描述">框里的路径是：.&#x2F;${filename}。.&#x2F;表示当前文件夹，${filename}表示当前文件名。这么设置的好处：</p>
-<ul>
-<li>图片资源文件夹有了；</li>
-<li>而且是同名文件夹！（上面提到的需要创建的文件夹其实不用手动添加了）</li>
-<li>这么设置的结果就是：想写篇博客，在source_posts文件夹下新建xxx.md文件，写着写着需要插一张图，从别处复制，然后在typora中直接粘贴，图片资源文件夹自动搞定，并不用关心什么文件夹，只管专注于md文件即可。</li>
-</ul>
-<h3 id="插件下载"><a href="#插件下载" class="headerlink" title="插件下载"></a>插件下载</h3><p>这个很多博客也有提到，插件的名字叫hexo-asset-image，相信在网上找了一波解决方案的同学一定对这个名字不陌生。</p>
-<p>这个插件的不同版本可能会有不同的影响，我最终成功解决问题的版本是用如下命令下载的：</p>
-<p><code>npm install hexo-asset-img --save</code></p>
-<p>注意一定不要使用下面的这个，因为hexo版本已经变了，带入了日期参数，使用下面的这个会导致问题，具体原因分析如下。</p>
-<p><code>npm install hexo-asset-image --save</code> <strong>不要用！！！</strong></p>
-<p>为什么需要这么插件呢？</p>
-<p>因为我们虽然在source_posts文件夹下写了md文件，也有了图片资源文件夹存了图片，但从我们前面typora中的设置不难知道，实际上md文件中的图片路径都是相对路径（.&#x2F;${filename}）。而实际网上看到的博文显然不是md文件，而是html文件，从md到html的转变就是hexo帮我们做的，还记得hexo g命令吗？就是干这个的。转换后的html文件在public目录下，路径是通过日期指示的。</p>
-<p><img src="/2023/05/21/hexo%E5%8D%9A%E5%AE%A2%E4%B8%AD%E6%8F%92%E5%85%A5%E5%9B%BE%E7%89%87%E5%A4%B1%E8%B4%A5-%E8%A7%A3%E5%86%B3%E6%80%9D%E8%B7%AF%E5%8F%8A%E4%B8%AA%E4%BA%BA%E6%9C%80%E7%BB%88%E8%A7%A3%E5%86%B3%E5%8A%9E%E6%B3%95/image-20230521010750761.png" alt="image-20230521010759555"></p>
-<p>上图为md文件保存地址和对应图片的保存地址，下图为hexo g 之后生成的public地址</p>
-<p><img src="/2023/05/21/hexo%E5%8D%9A%E5%AE%A2%E4%B8%AD%E6%8F%92%E5%85%A5%E5%9B%BE%E7%89%87%E5%A4%B1%E8%B4%A5-%E8%A7%A3%E5%86%B3%E6%80%9D%E8%B7%AF%E5%8F%8A%E4%B8%AA%E4%BA%BA%E6%9C%80%E7%BB%88%E8%A7%A3%E5%86%B3%E5%8A%9E%E6%B3%95/image-20230521010918633.png" alt="image-20230521010918633"></p>
-<p>大家如果了解过html的话，应该知道里面的图片应该是指定绝对路径的，大家可以打开上面第二张图的index.html，找到插入图片的地方，查看是否是可用的绝对路径，我的如下图。大家如果问题还没解决的话应该不是像我一样的日期+文件夹指明的绝对路径。<br>说到这儿，大家应该知道，理论上需要将md中图片的相对路径转换成html中的绝对路径，这样图片才能正常显示。因为我们图片资源也有了，显示不出来只能是路径不对（为验证，大家图片显示不对的话，打开index.html，插图片地方的路径肯定是一串不明所以的字母数字）。</p>
-<p><img src="/2023/05/21/hexo%E5%8D%9A%E5%AE%A2%E4%B8%AD%E6%8F%92%E5%85%A5%E5%9B%BE%E7%89%87%E5%A4%B1%E8%B4%A5-%E8%A7%A3%E5%86%B3%E6%80%9D%E8%B7%AF%E5%8F%8A%E4%B8%AA%E4%BA%BA%E6%9C%80%E7%BB%88%E8%A7%A3%E5%86%B3%E5%8A%9E%E6%B3%95/image-20230521011026522.png" alt="image-20230521011026522"></p>
-<p>路径转换就是该节最开始提到的插件的作用：根据md图片的相对路径，给出html中图片的绝对路径。如果使用的插件是image的话，会生成错误的地址路径，日期和目录名重复，有兴趣的朋友可以试一下，这也是排错的一个思路。</p>
-<p>路径：md文件名&#x2F;图片名，图片资源文件夹：自动生成且同名。这时如果用hexo clean、hexo g生成html文件，用Notepad++或其他工具打开index.html（路径见下方第一张图），找到插图片的地方，查看图片路径：发现图片路径似乎多了一串日期加目录信息，如果用hexo s在本地查看网页，会发现图片不显示，使用F12查看源码会发现图片位置提示404：</p>
-<p><strong>既然是路径问题，那么是不是插件有问题？或者我们使用方法错了？</strong></p>
-<p>找到插件安装位置（插件都在node_modules文件夹下），打开readme文件<br>readme如下：</p>
-<p><img src="/2023/05/21/hexo%E5%8D%9A%E5%AE%A2%E4%B8%AD%E6%8F%92%E5%85%A5%E5%9B%BE%E7%89%87%E5%A4%B1%E8%B4%A5-%E8%A7%A3%E5%86%B3%E6%80%9D%E8%B7%AF%E5%8F%8A%E4%B8%AA%E4%BA%BA%E6%9C%80%E7%BB%88%E8%A7%A3%E5%86%B3%E5%8A%9E%E6%B3%95/image-20230521011811207.png" alt="image-20230521011811207">瞬间发现别人的说明书讲得明明白白，言简意赅！我们的转化后路径不对正是因为我们md文件中图片的路径不对，图片名前面不能有其他东西！</p>
-<h2 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h2><p>找解决方案，断断续续找了2个多小时，写这篇博客又写了1个小时。感觉应该把整个过程讲得还算比较清楚了。</p>
-<p>但是这种问题向来因人而异，同样的解决方法可能可以解决我的问题，但对另一个人无效。还是要多查找资料，多尝试，多思考。重要的是要<strong>锻炼自己定位问题的能力</strong>。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -1732,7 +1826,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">22</span>
+          <span class="site-state-item-count">25</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -1745,7 +1839,7 @@
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">32</span>
+        <span class="site-state-item-count">35</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
@@ -1789,12 +1883,12 @@
     <span class="post-meta-item-icon">
       <i class="fa fa-chart-area"></i>
     </span>
-    <span title="Symbols count total">152k</span>
+    <span title="Symbols count total">173k</span>
     <span class="post-meta-divider">|</span>
     <span class="post-meta-item-icon">
       <i class="fa fa-coffee"></i>
     </span>
-    <span title="Reading time total">4:36</span>
+    <span title="Reading time total">5:15</span>
 </div>
   <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://muse.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
   </div>

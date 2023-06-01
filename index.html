@@ -193,6 +193,561 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://ethanwhite-chen.github.io/2023/06/02/Redis-Cluster%E6%9E%B6%E6%9E%84%E8%AF%A6%E8%A7%A3/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="EthanWhite-Chen">
+      <meta itemprop="description" content="不积跬步无以至千里，不积小流无以成江河。分享点滴成长，就有光明未来！">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="ykchen的个人博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/06/02/Redis-Cluster%E6%9E%B6%E6%9E%84%E8%AF%A6%E8%A7%A3/" class="post-title-link" itemprop="url">Redis Cluster架构详解</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2023-06-02 03:55:07 / Modified: 03:59:10" itemprop="dateCreated datePublished" datetime="2023-06-02T03:55:07+08:00">2023-06-02</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E9%9D%A2%E8%AF%95%E9%A2%98%E7%9B%AE/" itemprop="url" rel="index"><span itemprop="name">面试题目</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="Symbols count in article">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">Symbols count in article: </span>
+              <span>2.8k</span>
+            </span>
+            <span class="post-meta-item" title="Reading time">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">Reading time &asymp;</span>
+              <span>5 mins.</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="为什么有了主从架构后还需要Redis-Cluster架构"><a href="#为什么有了主从架构后还需要Redis-Cluster架构" class="headerlink" title="为什么有了主从架构后还需要Redis Cluster架构"></a>为什么有了主从架构后还需要Redis Cluster架构</h2><h3 id="主从架构的容量瓶颈"><a href="#主从架构的容量瓶颈" class="headerlink" title="主从架构的容量瓶颈"></a>主从架构的容量瓶颈</h3><p>我们回忆一下主从架构（一主多从）中，master节点负责写入数据，并同步给slave节点，然后slave节点负责处理读请求；可以通过slave节点的扩容，提高主从架构的读QPS；同时基于哨兵可以确保主从架构的高可用性。</p>
+<p>可以说主从 + 哨兵的一套组合拳，既能抗住高并发的读请求，同时也可以实现高可用性；但是主从架构的数据来源其实是master，而主从架构中只有一个master节点，就导致了redis存储的数据容量是很有限的。在海量数据场景下，如果单单使用主从+哨兵的架构，肯定是不行的。</p>
+<blockquote>
+<p>这就是我们所说的主从架构容量瓶颈。</p>
+</blockquote>
+<p>所以我们需要一个新的架构来支撑海量数据。</p>
+<p>读者可以先思考一下，单个master节点的数据容量是有限的，那么我们搞多个master节点，并且每个master节点中的数据都是不同的，这样不就可以支撑更大的数据量了吗？</p>
+<p>再说，这个新的架构支撑了更多的数据量，同时你至少也需要支撑高可用吧，如果连高可用性都不能保障的话，要这么大的数据量有什么用，一旦某个master节点发生故障，那么整个架构就不可用了，这也太坑爹了吧。所以新的架构也要做到高可用。</p>
+<p><strong>这个新的架构，也就是我们接下来要讲解的Redis Cluster。</strong></p>
+<h2 id="Redis-Cluster原理"><a href="#Redis-Cluster原理" class="headerlink" title="Redis Cluster原理"></a>Redis Cluster原理</h2><h3 id="基本介绍"><a href="#基本介绍" class="headerlink" title="基本介绍"></a>基本介绍</h3><ul>
+<li><p>Redis Cluster包含多个master节点，每个master节点挂在多个slave节点，多个master可以支撑更大的数据量</p>
+<blockquote>
+<p><strong>横向扩容支持更大数据量</strong>：如果我们需要支撑更多的数据量，那么添加新的master和slave节点就好了</p>
+</blockquote>
+</li>
+<li><p>当master节点挂掉后，Redis Cluster会从master对应的slave节点中选举出一个新的master完成故障转移（<strong>高可用</strong>）</p>
+</li>
+<li><p>redis cluster默认是不支持slave节点读或者写的，slave节点更多是为了master发生故障时备用的节点</p>
+</li>
+</ul>
+<h3 id="节点通信"><a href="#节点通信" class="headerlink" title="节点通信"></a>节点通信</h3><h4 id="通信流程"><a href="#通信流程" class="headerlink" title="通信流程"></a>通信流程</h4><h5 id="维护元信息的两种方式介绍"><a href="#维护元信息的两种方式介绍" class="headerlink" title="维护元信息的两种方式介绍"></a>维护元信息的两种方式介绍</h5><p>在分布式存储中需要提供维护<strong>节点元信息</strong>的机制，常见的元信息维护方式为：集中式和P2P。Redis Cluster使用的是P2P的<code>gossip</code>协议。</p>
+<blockquote>
+<p><strong>节点元信息主要包括：节点负责哪些数据、是否出现故障等状态信息。</strong></p>
+</blockquote>
+<p>我们来对比一下这两种维护元信息的方式。</p>
+<p>集中式：将元信息集中存储在一个外部组件里，比如ZooKeeper</p>
+<p><img src="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/276c8fb74c54408181d0efb8efb7abec~tplv-k3u1fbpfcp-zoom-in-crop-mark:4536:0:0:0.awebp" alt="集中式元信息存储">集中式元信息存储</p>
+<blockquote>
+<ul>
+<li>集中式的优点在于元数据的更新和读取，时效性非常好，一旦元数据出现了变更，立即就更新到集中式的存储中，其他节点读取的时候立即就可以感知到;</li>
+<li>缺点在于，所有的元数据的跟新压力全部集中在一个地方，可能会导致元数据的存储有压力。</li>
+</ul>
+</blockquote>
+<p>gossip协议：</p>
+<ul>
+<li>好处：元数据的更新比较分散，不是集中在一个地方，更新请求会陆陆续续，打到所有节点上去更新，有一定的延时，降低了压力</li>
+<li>缺点：<strong>元数据更新有延时</strong>，可能导致集群的一些操作会有一些滞后</li>
+</ul>
+<h5 id="10000端口"><a href="#10000端口" class="headerlink" title="10000端口"></a>10000端口</h5><p>每个节点都有一个专门用于<strong>节点间通信的端口</strong>，就是自己提供服务的端口号+10000，比如7001，那么用于节点间通信的就是17001端口</p>
+<blockquote>
+<p>每个节点隔一段时间都会往另外几个节点发送<code>ping</code>消息，同时其他几点接收到<code>ping</code>之后返回<code>pong</code></p>
+</blockquote>
+<h5 id="节点交换的信息"><a href="#节点交换的信息" class="headerlink" title="节点交换的信息"></a>节点交换的信息</h5><blockquote>
+<p>包含故障信息，节点的增加和移除，<code>hash slot</code>信息等等</p>
+</blockquote>
+<h5 id="gossip协议详解"><a href="#gossip协议详解" class="headerlink" title="gossip协议详解"></a>gossip协议详解</h5><h6 id="gossip消息"><a href="#gossip消息" class="headerlink" title="gossip消息"></a><code>gossip</code>消息</h6><blockquote>
+<p><code>gossip</code>协议包含多种消息，包括<code>ping</code>、<code>pong</code>、<code>meet</code>、<code>fail</code>等等。</p>
+</blockquote>
+<ul>
+<li><p><code>meet</code>：某个节点发送<code>meet</code>消息给新加入的节点，让新节点加入到集群中，然后新节点就会与其他节点通信</p>
+</li>
+<li><p><code>ping</code>：每个节点每秒都会频繁给其他节点发送<code>ping</code>，其中包含自己的状态还有自己维护的集群元信息。（节点之间互相交换元信息）</p>
+<blockquote>
+<ul>
+<li>节点之间互相通过<code>ping</code>交换元信息。</li>
+<li>每个节点每秒都会频繁发送<code>ping</code>给其他的节点，频繁的互相之间交换数据，互相进行元数据的更新</li>
+</ul>
+</blockquote>
+</li>
+<li><p><code>pong</code>：返回<code>ping</code>和<code>meet</code>，包含自己的状态和其他信息，也可以用于信息广播和更新</p>
+</li>
+<li><p><code>fail</code>：<strong>某个节点判断另一个节点<code>fail</code>之后，就发送<code>fail</code>给其他节点，通知其他节点，指定的节点宕机了</strong></p>
+</li>
+</ul>
+<blockquote>
+<p><code>ping</code>消息的深入理解：</p>
+<ul>
+<li><p><code>ping</code>很频繁，而且要携带一些元数据，所以可能会加重网络负担</p>
+<blockquote>
+<ul>
+<li>考虑到网络开销，每个节点每秒会执行10次<code>ping</code>时，每次会选择5个最久没有通信的其他节点</li>
+<li>当然如果发现与某个节点通信延时达到了<code>cluster_node_timeout</code> &#x2F; 2，那么立即发送<code>ping</code>，避免数据交换延时过长，落后的时间太长了<ul>
+<li>比如说，两个节点之间都10分钟没有交换数据了，那么整个集群处于<strong>严重的元数据不一致</strong>的情况，就会有问题；所以<code>cluster_node_timeout</code>可以调节，如果调节比较大，那么会降低发送的频率</li>
+</ul>
+</li>
+</ul>
+</blockquote>
+</li>
+<li><p>每次<code>ping</code>，一个是带上自己节点的信息，还有就是带上<code>1/10</code>其他节点的信息，发送出去，进行数据交换</p>
+</li>
+</ul>
+</blockquote>
+<h3 id="高可用性与主备切换原理"><a href="#高可用性与主备切换原理" class="headerlink" title="高可用性与主备切换原理"></a>高可用性与主备切换原理</h3><blockquote>
+<p>redis cluster的高可用的原理，几乎跟哨兵是类似的。</p>
+</blockquote>
+<h4 id="1-判断节点宕机"><a href="#1-判断节点宕机" class="headerlink" title="1. 判断节点宕机"></a>1. 判断节点宕机</h4><ul>
+<li><p>如果一个节点认为另外一个节点宕机，那么就是<code>pfail</code>，主观宕机</p>
+</li>
+<li><p>如果多个节点都认为另外一个节点宕机了，那么就是<code>fail</code>，客观宕机</p>
+<blockquote>
+<p>可以类比到哨兵中的<code>sdown</code>、<code>odown</code></p>
+</blockquote>
+</li>
+</ul>
+<p>如果在<code>cluster-node-timeout</code>内，某个节点一直没有返回<code>pong</code>，那么就被认为<code>pfail</code>。</p>
+<p>如果一个节点认为某个节点<code>pfail</code>了，那么会在gossip <code>ping</code>消息中，<code>ping</code>给其他节点，如果超过半数的节点都认为<code>pfail</code>了，那么就会变成<code>fail</code>（客观宕机）。</p>
+<h4 id="2-从节点过滤"><a href="#2-从节点过滤" class="headerlink" title="2. 从节点过滤"></a>2. 从节点过滤</h4><ul>
+<li>对宕机的master node，从其所有的slave node中，选择一个切换成master node</li>
+<li>检查每个slave node与master node断开连接的时间，如果超过了<code>cluster-node-timeout</code> * <code>cluster-slave-validity-factor</code>，那么就没有资格切换成master</li>
+</ul>
+<h4 id="3-从节点选举"><a href="#3-从节点选举" class="headerlink" title="3. 从节点选举"></a>3. 从节点选举</h4><ol>
+<li>每个从节点，都根据自己对master复制数据的<code>offset</code>，来设置一个选举时间，offset越大（复制数据越多）的从节点，选举时间越靠前，<strong>优先进行选举</strong>。</li>
+<li>所有的master node开始slave选举投票，给要进行选举的slave进行投票，如果大部分master node（N&#x2F;2 + 1）都投票给了某个从节点，那么选举通过，那个从节点可以切换成master。</li>
+<li>从节点执行主备切换，从节点切换为主节点（故障转移）</li>
+</ol>
+<blockquote>
+<p>哨兵的从节点选举：对所有从节点进行排序，slave <code>priority</code>，<code>offset</code>，<code>run id</code></p>
+</blockquote>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>本文先从主从架构的不足之处引出了Redis Cluster，然后介绍了Redis Cluster的原理，主要包含gossip协议以及高可用实现原理这两个点。本文并没有详细讲述Redis Cluster中比较重要的数据分片算法：hash slot算法，后面会专门写一篇文章讲述一下。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://ethanwhite-chen.github.io/2023/06/01/%E6%B7%B1%E5%85%A5%E8%A7%A3%E6%9E%90-Redis-%E5%88%86%E5%B8%83%E5%BC%8F%E9%94%81%E5%8E%9F%E7%90%86/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="EthanWhite-Chen">
+      <meta itemprop="description" content="不积跬步无以至千里，不积小流无以成江河。分享点滴成长，就有光明未来！">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="ykchen的个人博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/06/01/%E6%B7%B1%E5%85%A5%E8%A7%A3%E6%9E%90-Redis-%E5%88%86%E5%B8%83%E5%BC%8F%E9%94%81%E5%8E%9F%E7%90%86/" class="post-title-link" itemprop="url">深入解析 Redis 分布式锁原理</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+
+              <time title="Created: 2023-06-01 13:32:39" itemprop="dateCreated datePublished" datetime="2023-06-01T13:32:39+08:00">2023-06-01</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">Edited on</span>
+                <time title="Modified: 2023-06-02 03:47:48" itemprop="dateModified" datetime="2023-06-02T03:47:48+08:00">2023-06-02</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E9%9D%A2%E8%AF%95%E9%A2%98%E7%9B%AE/" itemprop="url" rel="index"><span itemprop="name">面试题目</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="Symbols count in article">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">Symbols count in article: </span>
+              <span>8.3k</span>
+            </span>
+            <span class="post-meta-item" title="Reading time">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">Reading time &asymp;</span>
+              <span>15 mins.</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <h2 id="一、实现原理"><a href="#一、实现原理" class="headerlink" title="一、实现原理"></a>一、实现原理</h2><h2 id="1-1-基本原理"><a href="#1-1-基本原理" class="headerlink" title="1.1 基本原理"></a>1.1 基本原理</h2><p>JDK 原生的锁可以让不同<strong>线程</strong>之间以互斥的方式来访问共享资源，但如果想要在不同<strong>进程</strong>之间以互斥的方式来访问共享资源，JDK 原生的锁就无能为力了。此时可以使用 Redis 来实现分布式锁。</p>
+<p>Redis 实现分布式锁的核心命令如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">SETNX key value</span><br></pre></td></tr></table></figure>
+
+<p>SETNX 命令的作用是：如果指定的 key 不存在，则创建并为其设置值，然后返回状态码 1；如果指定的 key 存在，则直接返回 0。如果返回值为 1，代表获得该锁；此时其他进程再次尝试创建时，由于 key 已经存在，则都会返回 0 ，代表锁已经被占用。</p>
+<p>当获得锁的进程处理完成业务后，再通过 del 命令将该 key 删除，其他进程就可以再次竞争性地进行创建，获得该锁。</p>
+<p>通常为了避免死锁，我们会为锁设置一个超时时间，在 Redis 中可以通过 expire 命令来进行实现：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">EXPIRE key seconds</span><br></pre></td></tr></table></figure>
+
+<p>这里我们将两者结合起来，并使用 Jedis 客户端来进行实现，其代码如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">Long</span> <span class="variable">result</span> <span class="operator">=</span> jedis.setnx(<span class="string">&quot;lockKey&quot;</span>, <span class="string">&quot;lockValue&quot;</span>);</span><br><span class="line"><span class="keyword">if</span> (result == <span class="number">1</span>) &#123;</span><br><span class="line">    <span class="comment">// 如果此处程序被异常终止（如直接kill -9进程），则设置超时的操作就无法进行，该锁就会出现死锁</span></span><br><span class="line">    jedis.expire(<span class="string">&quot;lockKey&quot;</span>, <span class="number">3</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>上面的代码存在原子性问题，即 setnx + expire 操作是非原子性的，如果在设置超时时间前，程序被异常终止，则程序就会出现死锁。此时可以将 SETNX 和 EXPIRE 两个命令写在同一个 Lua 脚本中，然后通过调用 Jedis 的 eval() 方法来执行，并由 Redis 来保证整个 Lua 脚本操作的原子性。这种方式实现比较繁琐，因此官方文档中推荐了另外一种更加优雅的实现方法：</p>
+<h2 id="1-2-官方推荐"><a href="#1-2-官方推荐" class="headerlink" title="1.2 官方推荐"></a>1.2 官方推荐</h2><p>[官方文档]( Distributed locks with Redis) 中推荐直接使用 set 命令来进行实现：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">SET key value [EX seconds|PX milliseconds] [NX|XX] [KEEPTTL]</span><br></pre></td></tr></table></figure>
+
+<p>这里我们主要关注以下四个参数：</p>
+<ul>
+<li><strong>EX</strong> ：设置超时时间，单位是秒；</li>
+<li><strong>PX</strong> ：设置超时时间，单位是毫秒；</li>
+<li><strong>NX</strong> ：当且仅当对应的 Key 不存在时才进行设置；</li>
+<li><strong>XX</strong>：当且仅当对应的 Key 存在时才进行设置。</li>
+</ul>
+<p>这四个参数从 Redis 2.6.12 版本开始支持，因为当前大多数在用的 Redis 都已经高于这个版本，所以推荐直接使用该命令来实现分布式锁。对应的 Jedis 代码如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">jedis.set(<span class="string">&quot;lockKey&quot;</span>, <span class="string">&quot;lockValue&quot;</span>, SetParams.setParams().nx().ex(<span class="number">3</span>));</span><br></pre></td></tr></table></figure>
+
+<p>此时一条命令就可以完成值和超时时间的设置，并且因为只有一条命令，因此其原子性也得到了保证。但因为引入了超时时间来避免死锁，同时也引出了其它两个问题：</p>
+<img src="/2023/06/01/%E6%B7%B1%E5%85%A5%E8%A7%A3%E6%9E%90-Redis-%E5%88%86%E5%B8%83%E5%BC%8F%E9%94%81%E5%8E%9F%E7%90%86/06/01/%E6%B7%B1%E5%85%A5%E8%A7%A3%E6%9E%90-Redis-%E5%88%86%E5%B8%83%E5%BC%8F%E9%94%81%E5%8E%9F%E7%90%86/v2-c2a257e6e20e01b93e012b5c8c710a95_720w.webp" class title="img">
+
+<ul>
+<li><strong>问题一</strong>：当业务处理的时间超过过期时间后（图中进程 A），由于锁已经被释放，此时其他进程就可以获得该锁（图中进程 B），这意味着有两个进程（A 和 B）同时进入了临界区，此时分布式锁就失效了；</li>
+<li><strong>问题二</strong>：如上图所示，当进程 A 业务处理完成后，此时删除的是进程 B 的锁，进而导致分布式锁又一次失效，让进程 B 和 进程 C 同时进入了临界区。</li>
+</ul>
+<p>针对问题二，我们可以在创建锁时为其指定一个唯一的标识作为 Key 的 Value，这里假设我们采用 UUID + 线程ID 来作为唯一标识：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">String</span> <span class="variable">identifier</span> <span class="operator">=</span> UUID.randomUUID() + <span class="string">&quot;:&quot;</span> + Thread.currentThread().getId();</span><br><span class="line">jedis.set(<span class="string">&quot;LockKey&quot;</span>, identifier, SetParams.setParams().nx().ex(<span class="number">3</span>));</span><br></pre></td></tr></table></figure>
+
+<p>然后在删除锁前，先将该唯一标识与锁的 Value 值进行比较，如果不相等，证明该锁不属于当前的操作对象，此时不执行删除操作。为保证判断操作和删除操作整体的原子性，这里需要使用 Lua 脚本来执行：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> redis.call(<span class="string">&quot;get&quot;</span>,KEYS[<span class="number">1</span>]) == ARGV[<span class="number">1</span>] then</span><br><span class="line">    <span class="keyword">return</span> redis.call(<span class="string">&quot;del&quot;</span>,KEYS[<span class="number">1</span>])</span><br><span class="line"><span class="keyword">else</span></span><br><span class="line">    <span class="keyword">return</span> <span class="number">0</span></span><br><span class="line">end</span><br></pre></td></tr></table></figure>
+
+<p>这段脚本的意思是如果 value 的值与给定的值相同，则执行删除命令，否则直接返回状态码 0 。对应使用 Jedis 实现的代码如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">String</span> <span class="variable">script</span> <span class="operator">=</span> <span class="string">&quot;if redis.call(&#x27;get&#x27;, KEYS[1]) == ARGV[1] then return redis.call(&#x27;del&#x27;, KEYS[1]) else return 0 end&quot;</span>;</span><br><span class="line">jedis.eval(script, </span><br><span class="line">           Collections.singletonList(<span class="string">&quot;LockKey&quot;</span>),  <span class="comment">// keys的集合</span></span><br><span class="line">           Collections.singletonList(identifier)  <span class="comment">// args的集合</span></span><br><span class="line">          );</span><br></pre></td></tr></table></figure>
+
+<p>接着再看问题一，问题一最简单的解决方法是：你可以估计业务的最大处理时间，然后保证设置的过期时间大于最大处理时间。但是由于业务会面临各种复杂的情况，因此可能无法保证业务每一次都能在规定的过期时间内处理完成，此时可以使用延长锁时效的策略。</p>
+<h2 id="1-3-延长锁时效"><a href="#1-3-延长锁时效" class="headerlink" title="1.3 延长锁时效"></a>1.3 延长锁时效</h2><p>延长锁时效的方案如下：假设锁超时时间是 30 秒，此时程序需要每隔一段时间去扫描一下该锁是否还存在，扫描时间需要小于超时时间，通常可以设置为超时时间的 1&#x2F;3，在这里也就是 10 秒扫描一次。如果锁还存在，则重置其超时时间恢复到 30 秒。通过这种方案，只要业务还没有处理完成，锁就会一直有效；而当业务一旦处理完成，程序也会马上删除该锁。</p>
+<p>Redis 的 Java 客户端 Redisson 提供的分布式锁就支持类似的延长锁时效的策略，称为 WatchDog，直译过来就是 “看门狗” 机制。</p>
+<p>以上讨论的都是单机环境下的 Redis 分布式锁，而想要保证 Redis 分布式锁是高可用，首先 Redis 得是高可用的，Redis 的高可用模式主要有两种：哨兵模式和集群模式。以下分别进行讨论：</p>
+<h2 id="二、哨兵模式与分布式锁"><a href="#二、哨兵模式与分布式锁" class="headerlink" title="二、哨兵模式与分布式锁"></a>二、哨兵模式与分布式锁</h2><p>哨兵模式是主从模式的升级版，能够在故障发生时自动进行故障切换，选举出新的主节点。但由于 Redis 的复制机制是异步的，因此在哨兵模式下实现的分布式锁是不可靠的，原因如下：</p>
+<ul>
+<li>由于主从之间的复制操作是异步的，当主节点上创建好锁后，此时从节点上的锁可能尚未创建。而如果此时主节点发生了宕机，从节点上将不会创建该分布式锁；</li>
+<li>从节点晋升为主节点后，其他进程（或线程）仍然可以在该新主节点创建分布式锁，此时就存在多个进程（或线程）同时进入了临界区，分布式锁就失效了。</li>
+</ul>
+<p>因此在哨兵模式下，无法避免锁失效的问题。因此想要实现高可用的分布式锁，可以采取 Redis 的另一个高可用方案 —— Redis 集群模式。</p>
+<h2 id="三、集群模式与分布式锁"><a href="#三、集群模式与分布式锁" class="headerlink" title="三、集群模式与分布式锁"></a>三、集群模式与分布式锁</h2><h2 id="3-1-RedLock-方案"><a href="#3-1-RedLock-方案" class="headerlink" title="3.1 RedLock 方案"></a>3.1 RedLock 方案</h2><p>想要在集群模式下实现分布式锁，Redis 提供了一种称为 RedLock 的方案，假设我们有 N 个 Redis 实例，此时客户端的执行过程如下：</p>
+<ul>
+<li>以毫秒为单位记录当前的时间，作为开始时间；</li>
+<li>接着采用和单机版相同的方式，依次尝试在每个实例上创建锁。为了避免客户端长时间与某个故障的 Redis 节点通讯而导致阻塞，这里采用快速轮询的方式：假设创建锁时设置的超时时间为 10 秒，则访问每个 Redis 实例的超时时间可能在 5 到 50 毫秒之间，如果在这个时间内还没有建立通信，则尝试连接下一个实例；</li>
+<li>如果在至少 N&#x2F;2+1 个实例上都成功创建了锁。并且 当前时间 - 开始时间 &lt; 锁的超时时间 ，则认为已经获取了锁，锁的有效时间等于 超时时间 - 花费时间（如果考虑不同 Redis 实例所在服务器的时钟漂移，则还需要减去时钟漂移）；</li>
+<li>如果少于 N&#x2F;2+1 个实例，则认为创建分布式锁失败，此时需要删除这些实例上已创建的锁，以便其他客户端进行创建。</li>
+<li>该客户端在失败后，可以等待一个随机的时间后，再次进行重试。</li>
+</ul>
+<p>以上就是 RedLock 的实现方案，可以看到主要是由客户端来实现的，并不真正涉及到 Redis 集群相关的功能。因此这里的 N 个 Redis 实例并不要求是一个真正的 Redis 集群，它们彼此之间可以是完全独立的，但由于只需要半数节点获得锁就能真正获得锁，因此其仍然具备容错性和高可用性。后面使用 Redisson 来演示 RedLock 时会再次验证这一点。</p>
+<h2 id="3-2-低延迟通讯"><a href="#3-2-低延迟通讯" class="headerlink" title="3.2 低延迟通讯"></a>3.2 低延迟通讯</h2><p>另外实现 RedLock 方案的客户端与所有 Redis 实例进行通讯时，必须要保证低延迟，而且最好能使用多路复用技术来保证一次性将 SET 命令发送到所有 Redis 节点上，并获取到对应的执行结果。如果网络延迟较高，假设客户端 A 和 B 都在尝试创建锁：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">SET key 随机数A EX <span class="number">3</span> NX  #A客户端</span><br><span class="line">SET key 随机数B EX <span class="number">3</span> NX  #B客户端</span><br></pre></td></tr></table></figure>
+
+<p>此时可能客户端 A 在一半节点上创建了锁，而客户端 B 在另外一半节点上创建了锁，那么两个客户端都将无法获取到锁。如果并发很高，则可能存在多个客户端分别在部分节点上创建了锁，而没有一个客户端的数量超过 N&#x2F;2+1。这也就是上面过程的最后一步中，强调一旦客户端失败后，需要等待一个随机时间后再进行重试的原因，如果是一个固定时间，则所有失败的客户端又同时发起重试，情况就还是一样。</p>
+<p>因此最佳的实现就是客户端的 SET 命令能几乎同时到达所有节点，并几乎同时接受到所有执行结果。 想要保证这一点，低延迟的网络通信极为关键，下文介绍的 Redisson 就采用 Netty 框架来保证这一功能的实现。</p>
+<h2 id="3-3-持久化与高可用"><a href="#3-3-持久化与高可用" class="headerlink" title="3.3 持久化与高可用"></a>3.3 持久化与高可用</h2><p>为了保证高可用，所有 Redis 节点还需要开启持久化。假设不开启持久化，假设进程 A 获得锁后正在处理业务逻辑，此时节点宕机重启，因为锁数据丢失了，其他进程便可以再次创建该锁，因此所有 Redis 节点都需要开启 AOF 的持久化方式。</p>
+<p>AOF 默认的同步机制为 everysec，即每秒进程一次持久化，此时能够兼顾性能与数据安全，发生意外宕机的时，最多会丢失一秒的数据。但如果碰巧就是在这一秒的时间内进程 A 创建了锁，并由于宕机而导致数据丢失。此时其他进程还可以创建该锁，锁的互斥性也就失效了。想要解决这个问题有两种方式：</p>
+<ul>
+<li><strong>方式一</strong>：修改 Redis.conf 中 appendfsync 的值为 always，即每次命令后都进行持久化，此时会降低 Redis 性能，进而也会降低分布式锁的性能，但锁的互斥性得到了绝对的保证；</li>
+<li><strong>方式二</strong>：一旦节点宕机了，需要等到锁的超时时间过了之后才进行重启，此时相当于原有锁自然失效（但你首先需要保证业务能在设定的超时时间内完成），这种方案也称为延时重启。</li>
+</ul>
+<h2 id="四、Redisson"><a href="#四、Redisson" class="headerlink" title="四、Redisson"></a>四、Redisson</h2><p>Redisson 是 Redis 的 Java 客户端，它提供了各种的 Redis 分布式锁的实现，如可重入锁、公平锁、RedLock、读写锁等等，并且在实现上考虑得也更加全面，适用于生产环境下使用。</p>
+<h2 id="4-1-分布式锁"><a href="#4-1-分布式锁" class="headerlink" title="4.1 分布式锁"></a>4.1 分布式锁</h2><p>使用 Redisson 来创建单机版本分布式锁非常简单，示例如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 1.创建RedissonClient,如果与spring集成，可以将RedissonClient声明为Bean,在使用时注入即可</span></span><br><span class="line"><span class="type">Config</span> <span class="variable">config</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Config</span>();</span><br><span class="line">config.useSingleServer().setAddress(<span class="string">&quot;redis://192.168.0.100:6379&quot;</span>);</span><br><span class="line"><span class="type">RedissonClient</span> <span class="variable">redissonClient</span> <span class="operator">=</span> Redisson.create(config);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 2.创建锁实例</span></span><br><span class="line"><span class="type">RLock</span> <span class="variable">lock</span> <span class="operator">=</span> redissonClient.getLock(<span class="string">&quot;myLock&quot;</span>);</span><br><span class="line"><span class="keyword">try</span> &#123;</span><br><span class="line">    <span class="comment">//3.尝试获取分布式锁，第一个参数为等待时间，第二个参数为锁过期时间</span></span><br><span class="line">    <span class="type">boolean</span> <span class="variable">isLock</span> <span class="operator">=</span> lock.tryLock(<span class="number">10</span>, <span class="number">30</span>, TimeUnit.SECONDS);</span><br><span class="line">    <span class="keyword">if</span> (isLock) &#123;</span><br><span class="line">        <span class="comment">// 4.模拟业务处理</span></span><br><span class="line">        System.out.println(<span class="string">&quot;处理业务逻辑&quot;</span>);</span><br><span class="line">        Thread.sleep(<span class="number">20</span> * <span class="number">1000</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">    e.printStackTrace();</span><br><span class="line">&#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">    <span class="comment">//5.释放锁</span></span><br><span class="line">    lock.unlock();</span><br><span class="line">&#125;</span><br><span class="line">redissonClient.shutdown();</span><br></pre></td></tr></table></figure>
+
+<p>此时对应在 Redis 中的数据结构如下：</p>
+<img src="/2023/06/01/%E6%B7%B1%E5%85%A5%E8%A7%A3%E6%9E%90-Redis-%E5%88%86%E5%B8%83%E5%BC%8F%E9%94%81%E5%8E%9F%E7%90%86/06/01/%E6%B7%B1%E5%85%A5%E8%A7%A3%E6%9E%90-Redis-%E5%88%86%E5%B8%83%E5%BC%8F%E9%94%81%E5%8E%9F%E7%90%86/v2-28d9e979f9f7a695267e7ac8c77e01c2_720w.webp" class title="img">
+
+
+
+<p>可以看到 key 就是代码中设置的锁名，而 value 值的类型是 hash，其中键 9280e909-c86b-43ec-b11d-6e5a7745e2e9:13 的格式为 UUID + 线程ID ；键对应的值为 1，代表加锁的次数。之所以要采用 hash 这种格式，主要是因为 Redisson 创建的锁是具有重入性的，即你可以多次进行加锁：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">boolean</span> <span class="variable">isLock1</span> <span class="operator">=</span> lock.tryLock(<span class="number">0</span>, <span class="number">30</span>, TimeUnit.SECONDS);</span><br><span class="line"><span class="type">boolean</span> <span class="variable">isLock2</span> <span class="operator">=</span> lock.tryLock(<span class="number">0</span>, <span class="number">30</span>, TimeUnit.SECONDS);</span><br></pre></td></tr></table></figure>
+
+<p>此时对应的值就会变成 2，代表加了两次锁：</p>
+<img src="/2023/06/01/%E6%B7%B1%E5%85%A5%E8%A7%A3%E6%9E%90-Redis-%E5%88%86%E5%B8%83%E5%BC%8F%E9%94%81%E5%8E%9F%E7%90%86/06/01/%E6%B7%B1%E5%85%A5%E8%A7%A3%E6%9E%90-Redis-%E5%88%86%E5%B8%83%E5%BC%8F%E9%94%81%E5%8E%9F%E7%90%86/v2-90d0663d51c8fca4d8e2a9035406c186_720w.webp" class title="img">
+
+
+
+
+
+<p>当然和其他重入锁一样，需要保证解锁的次数和加锁的次数一样，才能完全解锁：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">lock.unlock();</span><br><span class="line">lock.unlock();</span><br></pre></td></tr></table></figure>
+
+<h2 id="4-2-RedLock"><a href="#4-2-RedLock" class="headerlink" title="4.2 RedLock"></a>4.2 RedLock</h2><p>Redisson 也实现了 Redis 官方推荐的 RedLock 方案，这里我们启动三个 Redis 实例进行演示，它们彼此之间可以是完全独立的，并不需要进行集群的相关配置：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">$ ./redis-server ../redis.conf</span><br><span class="line">$ ./redis-server ../redis.conf --port <span class="number">6380</span></span><br><span class="line">$ ./redis-server ../redis.conf --port <span class="number">6381</span></span><br></pre></td></tr></table></figure>
+
+<p>对应的代码示例如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 1.创建RedissonClient</span></span><br><span class="line"><span class="type">Config</span> <span class="variable">config01</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Config</span>();</span><br><span class="line">config01.useSingleServer().setAddress(<span class="string">&quot;redis://192.168.0.100:6379&quot;</span>);</span><br><span class="line"><span class="type">RedissonClient</span> <span class="variable">redissonClient01</span> <span class="operator">=</span> Redisson.create(config01);</span><br><span class="line"><span class="type">Config</span> <span class="variable">config02</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Config</span>();</span><br><span class="line">config02.useSingleServer().setAddress(<span class="string">&quot;redis://192.168.0.100:6380&quot;</span>);</span><br><span class="line"><span class="type">RedissonClient</span> <span class="variable">redissonClient02</span> <span class="operator">=</span> Redisson.create(config02);</span><br><span class="line"><span class="type">Config</span> <span class="variable">config03</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Config</span>();</span><br><span class="line">config03.useSingleServer().setAddress(<span class="string">&quot;redis://192.168.0.100:6381&quot;</span>);</span><br><span class="line"><span class="type">RedissonClient</span> <span class="variable">redissonClient03</span> <span class="operator">=</span> Redisson.create(config03);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 2.创建锁实例</span></span><br><span class="line"><span class="type">String</span> <span class="variable">lockName</span> <span class="operator">=</span> <span class="string">&quot;myLock&quot;</span>;</span><br><span class="line"><span class="type">RLock</span> <span class="variable">lock01</span> <span class="operator">=</span> redissonClient01.getLock(lockName);</span><br><span class="line"><span class="type">RLock</span> <span class="variable">lock02</span> <span class="operator">=</span> redissonClient02.getLock(lockName);</span><br><span class="line"><span class="type">RLock</span> <span class="variable">lock03</span> <span class="operator">=</span> redissonClient03.getLock(lockName);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 3. 创建 RedissonRedLock</span></span><br><span class="line"><span class="type">RedissonRedLock</span> <span class="variable">redLock</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">RedissonRedLock</span>(lock01, lock02, lock03);</span><br><span class="line"></span><br><span class="line"><span class="keyword">try</span> &#123;</span><br><span class="line">    <span class="type">boolean</span> <span class="variable">isLock</span> <span class="operator">=</span> redLock.tryLock(<span class="number">10</span>, <span class="number">300</span>, TimeUnit.SECONDS);</span><br><span class="line">    <span class="keyword">if</span> (isLock) &#123;</span><br><span class="line">        <span class="comment">// 4.模拟业务处理</span></span><br><span class="line">        System.out.println(<span class="string">&quot;处理业务逻辑&quot;</span>);</span><br><span class="line">        Thread.sleep(<span class="number">200</span> * <span class="number">1000</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">    e.printStackTrace();</span><br><span class="line">&#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">    <span class="comment">//5.释放锁</span></span><br><span class="line">    redLock.unlock();</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">redissonClient01.shutdown();</span><br><span class="line">redissonClient02.shutdown();</span><br><span class="line">redissonClient03.shutdown();</span><br></pre></td></tr></table></figure>
+
+<p>此时每个 Redis 实例上锁的情况如下：</p>
+<img src="/2023/06/01/%E6%B7%B1%E5%85%A5%E8%A7%A3%E6%9E%90-Redis-%E5%88%86%E5%B8%83%E5%BC%8F%E9%94%81%E5%8E%9F%E7%90%86/06/01/%E6%B7%B1%E5%85%A5%E8%A7%A3%E6%9E%90-Redis-%E5%88%86%E5%B8%83%E5%BC%8F%E9%94%81%E5%8E%9F%E7%90%86/v2-27d8b6a263203ca7996d7d1f839009d5_720w.webp" class title="img">
+
+
+
+
+
+<p>可以看到每个实例上都获得了锁。</p>
+<h2 id="4-3-延长锁时效"><a href="#4-3-延长锁时效" class="headerlink" title="4.3 延长锁时效"></a>4.3 延长锁时效</h2><p>最后，介绍一下 Redisson 的 WatchDog 机制，它可以用来延长锁时效，示例如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">Config</span> <span class="variable">config</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Config</span>();</span><br><span class="line"><span class="comment">// 1.设置WatchdogTimeout</span></span><br><span class="line">config.setLockWatchdogTimeout(<span class="number">30</span> * <span class="number">1000</span>);</span><br><span class="line">config.useSingleServer().setAddress(<span class="string">&quot;redis://192.168.0.100:6379&quot;</span>);</span><br><span class="line"><span class="type">RedissonClient</span> <span class="variable">redissonClient</span> <span class="operator">=</span> Redisson.create(config);</span><br><span class="line"></span><br><span class="line"><span class="comment">// 2.创建锁实例</span></span><br><span class="line"><span class="type">RLock</span> <span class="variable">lock</span> <span class="operator">=</span> redissonClient.getLock(<span class="string">&quot;myLock&quot;</span>);</span><br><span class="line"><span class="keyword">try</span> &#123;</span><br><span class="line">    <span class="comment">//3.尝试获取分布式锁，第一个参数为等待时间</span></span><br><span class="line">    <span class="type">boolean</span> <span class="variable">isLock</span> <span class="operator">=</span> lock.tryLock(<span class="number">0</span>, TimeUnit.SECONDS);</span><br><span class="line">    <span class="keyword">if</span> (isLock) &#123;</span><br><span class="line">        <span class="comment">// 4.模拟业务处理</span></span><br><span class="line">        System.out.println(<span class="string">&quot;处理业务逻辑&quot;</span>);</span><br><span class="line">        Thread.sleep(<span class="number">60</span> * <span class="number">1000</span>);</span><br><span class="line">        System.out.println(<span class="string">&quot;锁剩余的生存时间：&quot;</span> + lock.remainTimeToLive());</span><br><span class="line">    &#125;</span><br><span class="line">&#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">    e.printStackTrace();</span><br><span class="line">&#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">    <span class="comment">//5.释放锁</span></span><br><span class="line">    lock.unlock();</span><br><span class="line">&#125;</span><br><span class="line">redissonClient.shutdown();</span><br></pre></td></tr></table></figure>
+
+<p>首先 Redisson 的 WatchDog 机制只会对那些没有设置锁超时时间的锁生效，所以我们这里调用的是两个参数的 tryLock() 方法：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">boolean</span> <span class="title function_">tryLock</span><span class="params">(<span class="type">long</span> time, TimeUnit unit)</span> <span class="keyword">throws</span> InterruptedException;</span><br></pre></td></tr></table></figure>
+
+<p>而不是包含超时时间的三个参数的 tryLock() 方法：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="type">boolean</span> <span class="title function_">tryLock</span><span class="params">(<span class="type">long</span> waitTime, <span class="type">long</span> leaseTime, TimeUnit unit)</span> <span class="keyword">throws</span> InterruptedException;</span><br><span class="line">复制代码</span><br></pre></td></tr></table></figure>
+
+<p>其次我们通过 config.setLockWatchdogTimeout(30 * 1000) 将 lockWatchdogTimeout 的值设置为 30000 毫秒（默认值也是 30000 毫秒）。此时 Redisson 的 WatchDog 机制会以 lockWatchdogTimeout 的 1&#x2F;3 时长为周期（在这里就是 10 秒）对所有未设置超时时间的锁进行检查，如果业务尚未处理完成（也就是锁还没有被程序主动删除），Redisson 就会将锁的超时时间重置为 lockWatchdogTimeout 指定的值（在这里就是设置的 30 秒），直到锁被程序主动删除位置。因此在上面的例子中可以看到，不论将模拟业务的睡眠时间设置为多长，其锁都会存在一定的剩余生存时间，直至业务处理完成。</p>
+<p>反之，如果明确的指定了锁的超时时间 leaseTime，则以 leaseTime 的时间为准，因为 WatchDog 机制对明确指定超时时间的锁不会生效。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="https://ethanwhite-chen.github.io/2023/06/01/MyBatis-Plus%E7%9A%84BaseMapper%E5%AE%9E%E7%8E%B0%E5%8E%9F%E7%90%86/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="EthanWhite-Chen">
+      <meta itemprop="description" content="不积跬步无以至千里，不积小流无以成江河。分享点滴成长，就有光明未来！">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="ykchen的个人博客">
+    </span>
+      <header class="post-header">
+        <h2 class="post-title" itemprop="name headline">
+          
+            <a href="/2023/06/01/MyBatis-Plus%E7%9A%84BaseMapper%E5%AE%9E%E7%8E%B0%E5%8E%9F%E7%90%86/" class="post-title-link" itemprop="url">MyBatis-Plus的BaseMapper实现原理</a>
+        </h2>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2023-06-01 13:12:56 / Modified: 13:24:38" itemprop="dateCreated datePublished" datetime="2023-06-01T13:12:56+08:00">2023-06-01</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">In</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E9%9D%A2%E8%AF%95%E9%A2%98%E7%9B%AE/" itemprop="url" rel="index"><span itemprop="name">面试题目</span></a>
+                </span>
+            </span>
+
+          <br>
+            <span class="post-meta-item" title="Symbols count in article">
+              <span class="post-meta-item-icon">
+                <i class="far fa-file-word"></i>
+              </span>
+                <span class="post-meta-item-text">Symbols count in article: </span>
+              <span>11k</span>
+            </span>
+            <span class="post-meta-item" title="Reading time">
+              <span class="post-meta-item-icon">
+                <i class="far fa-clock"></i>
+              </span>
+                <span class="post-meta-item-text">Reading time &asymp;</span>
+              <span>19 mins.</span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+          <p>Mybatis-plus为我们提供了一些通用mapper方法，比如insert，update，selectById等等，我们通过让自己的mapper继承BaseMapper这个类就可以不用自己写sql就能直接调用一些基础的sql方法。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">interface</span> <span class="title class_">BaseMapper</span>&lt;T&gt; <span class="keyword">extends</span> <span class="title class_">Mapper</span>&lt;T&gt; &#123;&#125;</span><br></pre></td></tr></table></figure>
+
+<p>但是在使用过程中还是发现这里面提供的方法有点少，当我们想要添加自己的通用sql方法的时候，可以通过官方文档描述的 <a href="https://link.juejin.cn/?target=https://mp.baomidou.com/guide/sql-injector.html">Sql 注入器</a> 来实现。比我们我们自己定义一个saveBatch方法，用来批量的插入数据。</p>
+<h2 id="BaseMapper自定义扩展"><a href="#BaseMapper自定义扩展" class="headerlink" title="BaseMapper自定义扩展"></a>BaseMapper自定义扩展</h2><p>mybatis-plus提供了<code>ISqlInjector</code>接口，以及<code>AbstractSqlInjector</code>抽象类。我们通过实现该接口，或者继承抽象类的方式注入我们自已定义的SQL逻辑，然后继承BaseMapper添加我们需要的方法就可以添加自定义的mapper方法。</p>
+<p>在这2个接口之外，mybatis-plus其实为我们提供了一个默认实现：<code>DefaultSqlInjector</code>，这里面已经包含了一些mybatis-plus已经封装好的BaseMapper里面的方法，我们想要扩展的话，可以直接继承这个类来进行扩展添加我们的方法。</p>
+<p>这里我们希望在BaseMapper之外添加一个saveBatch方法，用来可以批量的插入数据：</p>
+<ol>
+<li>实现<code>DefaultSqlInjector</code>类，我们可以看到<strong>需要实现<code>getMethodList</code>方法</strong>，这个方法参数是mapper接口的class类，返回值是一个List<AbstractMethod>。所以我们自定义的方法是需要实现<code>AbstractMethod</code>。可以参考mybatis-plus中已经实现了一些<code>AbstractMethod</code>方法，我们仿造写一个SaveBatch类。</AbstractMethod></li>
+</ol>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">CustomSqlInjector</span> <span class="keyword">extends</span> <span class="title class_">DefaultSqlInjector</span> &#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> List&lt;AbstractMethod&gt; <span class="title function_">getMethodList</span><span class="params">(Class&lt;?&gt; mapperClass)</span> &#123;</span><br><span class="line">      	<span class="comment">// 父类的list已经包含了BaseMapper的基础方法。</span></span><br><span class="line">        List&lt;AbstractMethod&gt; methodList = <span class="built_in">super</span>.getMethodList(mapperClass);</span><br><span class="line">        <span class="comment">// 添加我们需要增加的自定义方法。</span></span><br><span class="line">        methodList.add(<span class="keyword">new</span> <span class="title class_">SaveBatch</span>());</span><br><span class="line">        <span class="keyword">return</span> methodList;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<ol>
+<li>实现SaveBatch类的逻辑（这是官方的samples）。我们可以看到，这里的逻辑主要就是为了<strong>生成MappedStatement对象</strong>。</li>
+</ol>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">SaveBatch</span> <span class="keyword">extends</span> <span class="title class_">AbstractMethod</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="keyword">public</span> MappedStatement <span class="title function_">injectMappedStatement</span><span class="params">(Class&lt;?&gt; mapperClass, Class&lt;?&gt; modelClass, TableInfo tableInfo)</span> &#123;</span><br><span class="line">        <span class="keyword">final</span> <span class="type">String</span> <span class="variable">sql</span> <span class="operator">=</span> <span class="string">&quot;&lt;script&gt;insert into %s %s values %s&lt;/script&gt;&quot;</span>;</span><br><span class="line">        <span class="keyword">final</span> <span class="type">String</span> <span class="variable">fieldSql</span> <span class="operator">=</span> prepareFieldSql(tableInfo);</span><br><span class="line">        <span class="keyword">final</span> <span class="type">String</span> <span class="variable">valueSql</span> <span class="operator">=</span> prepareValuesSqlForMysqlBatch(tableInfo);</span><br><span class="line">        <span class="keyword">final</span> <span class="type">String</span> <span class="variable">sqlResult</span> <span class="operator">=</span> String.format(sql, tableInfo.getTableName(), fieldSql, valueSql);</span><br><span class="line">        <span class="type">SqlSource</span> <span class="variable">sqlSource</span> <span class="operator">=</span> languageDriver.createSqlSource(configuration, sqlResult, modelClass);</span><br><span class="line">        <span class="keyword">return</span> <span class="built_in">this</span>.addInsertMappedStatement(mapperClass, modelClass, <span class="string">&quot;saveBatch&quot;</span>, sqlSource, <span class="keyword">new</span> <span class="title class_">NoKeyGenerator</span>(), <span class="literal">null</span>, <span class="literal">null</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> String <span class="title function_">prepareFieldSql</span><span class="params">(TableInfo tableInfo)</span> &#123;</span><br><span class="line">        <span class="type">StringBuilder</span> <span class="variable">fieldSql</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">StringBuilder</span>();</span><br><span class="line">        fieldSql.append(tableInfo.getKeyColumn()).append(<span class="string">&quot;,&quot;</span>);</span><br><span class="line">        tableInfo.getFieldList().forEach(x -&gt; &#123;</span><br><span class="line">            fieldSql.append(x.getColumn()).append(<span class="string">&quot;,&quot;</span>);</span><br><span class="line">        &#125;);</span><br><span class="line">        fieldSql.delete(fieldSql.length() - <span class="number">1</span>, fieldSql.length());</span><br><span class="line">        fieldSql.insert(<span class="number">0</span>, <span class="string">&quot;(&quot;</span>);</span><br><span class="line">        fieldSql.append(<span class="string">&quot;)&quot;</span>);</span><br><span class="line">        <span class="keyword">return</span> fieldSql.toString();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> String <span class="title function_">prepareValuesSqlForMysqlBatch</span><span class="params">(TableInfo tableInfo)</span> &#123;</span><br><span class="line">        <span class="keyword">final</span> <span class="type">StringBuilder</span> <span class="variable">valueSql</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">StringBuilder</span>();</span><br><span class="line">        valueSql.append(<span class="string">&quot;&lt;foreach collection=\&quot;list\&quot; item=\&quot;item\&quot; index=\&quot;index\&quot; open=\&quot;(\&quot; separator=\&quot;),(\&quot; close=\&quot;)\&quot;&gt;&quot;</span>);</span><br><span class="line">        valueSql.append(<span class="string">&quot;#&#123;item.&quot;</span>).append(tableInfo.getKeyProperty()).append(<span class="string">&quot;&#125;,&quot;</span>);</span><br><span class="line">        tableInfo.getFieldList().forEach(x -&gt; valueSql.append(<span class="string">&quot;#&#123;item.&quot;</span>).append(x.getProperty()).append(<span class="string">&quot;&#125;,&quot;</span>));</span><br><span class="line">        valueSql.delete(valueSql.length() - <span class="number">1</span>, valueSql.length());</span><br><span class="line">        valueSql.append(<span class="string">&quot;&lt;/foreach&gt;&quot;</span>);</span><br><span class="line">        <span class="keyword">return</span> valueSql.toString();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<ol>
+<li>最后我们需要将我们的Injector注入Spring容器中，替换默认的Injector。</li>
+</ol>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Bean</span></span><br><span class="line"><span class="keyword">public</span> CustomSqlInjector <span class="title function_">myLogicSqlInjector</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> <span class="title class_">CustomSqlInjector</span>();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<ol>
+<li>验证：</li>
+</ol>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">interface</span> <span class="title class_">TB3Mapper</span> <span class="keyword">extends</span> <span class="title class_">MyBaseMapper</span>&lt;Tb3&gt; &#123;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="meta">@Test</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">test</span><span class="params">()</span> &#123;</span><br><span class="line">    List&lt;Tb3&gt; tb3s = Arrays.asList(Tb3.getInstance(), Tb3.getInstance());</span><br><span class="line">    tb3Mapper.saveBatch(tb3s);</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">// output log</span></span><br><span class="line">==&gt;  Preparing: insert into <span class="title function_">tb3</span> <span class="params">(id,f1,f2,f3)</span> values ( ?,?,?,? ),( ?,?,?,? )</span><br><span class="line">==&gt; Parameters: <span class="number">38</span>(Integer), <span class="number">62</span>(Integer), -<span class="number">1546785812</span>(Integer), -<span class="number">16950756</span>(Integer), <span class="number">24</span>(Integer), <span class="number">17</span>(Integer), -<span class="number">1871764773</span>(Integer), <span class="number">169785869</span>(Integer)</span><br><span class="line">&lt;==    Updates: <span class="number">2</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="原理解析"><a href="#原理解析" class="headerlink" title="原理解析"></a>原理解析</h2><p>首先简单说下mybatis-plus，我只是简单翻了下源码，mybatis-plus的工作原理就是：全面再次代理了mybatis的一些东西。比如自动配置转用了MybatisPlusAutoConfiguration，SqlSessionFactoryBean转用了MybatisSqlSessionFactoryBean等等，这些mybatis的核心部件，全部都被mybatis-plus给替换了，用成了它自己的，然后它就在自己的里面定制了自己的逻辑。</p>
+<p>我只分析下BaseMapper的实现原理，当初在文档中没有看到这块，自己手写了一版自定义的逻辑，跟踪了这块代码。在这之前还是简单阐述下mybatis的一些核心的原理，如果没有看过mybatis源码的话，知道这些也应该能看懂。</p>
+<p><strong>mybatis的整体逻辑可以分为2块</strong>：</p>
+<ol>
+<li>配置文件解析：这过程包括解析我们config的配置，以及mapper.xml文件。最终配置都会被解析到一个Configuration对象里面，后面的每个SqlSession也都会包含一个该Configuration对象实例的引用。这个Configuration里面最重要的有2个东西：</li>
+</ol>
+<p><img src="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/f72e6daf364f4649894a9cf26eeb2708~tplv-k3u1fbpfcp-zoom-in-crop-mark:4536:0:0:0.awebp" alt="image-20210830223002642.png"></p>
+<ul>
+<li>mappedStatements：存放mapper对应的sql信息</li>
+<li>mybatisMapperRegistry.knownMappers：存放mapper接口对应的代理类</li>
+</ul>
+<p>这2个东西贯穿了mybatis的接口到sql的执行逻辑。</p>
+<ol>
+<li>接口的调用：我们接口调用的其实是代理的包装类，这个类也是上图mybatisMapperRegistry.knownMappers里面展示的MybatisMapperProxyFactory（mybatis是MapperProxyFactory）的getObject返回的代理MybatisMapperProxy对象。这个代理类里面的主要逻辑就是拿着该类的全限定类名，指定某个方法的时候，去Configuration的mappedStatements里面去找到对应的sql。</li>
+</ol>
+<p>所以知道了mybatis的大概逻辑了，我们可以猜到：<strong>在Configuration加载的时候，一定有地方将我们BaseMapper的默认方法对应的SQL的信息给装载到mappedStatements这个map里面去。我们就需要去跟踪，在哪里我们将这些默认的基础方法的MappedStatement对象进行构建，并插入到configuration中的。</strong></p>
+<p>debug跟踪可以发现：</p>
+<p>第一步，肯定是自动配置要加载SqlSessionFactory，这个方法主要是构建MybatisSqlSessionFactoryBean对象，然后调用getObject方法，我们跟进<code>MybatisSqlSessionFactoryBean.getObject()</code></p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">java复制代码<span class="meta">@Override</span></span><br><span class="line"><span class="keyword">public</span> SqlSessionFactory <span class="title function_">getObject</span><span class="params">()</span> <span class="keyword">throws</span> Exception &#123;</span><br><span class="line">    <span class="keyword">if</span> (<span class="built_in">this</span>.sqlSessionFactory == <span class="literal">null</span>) &#123;</span><br><span class="line">        afterPropertiesSet();</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="built_in">this</span>.sqlSessionFactory;</span><br><span class="line">&#125;</span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">afterPropertiesSet</span><span class="params">()</span> <span class="keyword">throws</span> Exception &#123;</span><br><span class="line">    notNull(dataSource, <span class="string">&quot;Property &#x27;dataSource&#x27; is required&quot;</span>);</span><br><span class="line">    state((configuration == <span class="literal">null</span> &amp;&amp; configLocation == <span class="literal">null</span>) || !(configuration != <span class="literal">null</span> &amp;&amp; configLocation != <span class="literal">null</span>),</span><br><span class="line">        <span class="string">&quot;Property &#x27;configuration&#x27; and &#x27;configLocation&#x27; can not specified with together&quot;</span>);</span><br><span class="line">  	<span class="comment">// 这里才是开始构建SqlSessionFactory的</span></span><br><span class="line">    <span class="built_in">this</span>.sqlSessionFactory = buildSqlSessionFactory();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>可以看到，最终会执行到buildSqlSessionFactory()。这块方法的主要逻辑就是解析XML配置来创建Configuration对象。我们可以在最下面发现解析我们mapper.xml文件的逻辑：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (<span class="built_in">this</span>.mapperLocations != <span class="literal">null</span>) &#123;</span><br><span class="line">    <span class="keyword">if</span> (<span class="built_in">this</span>.mapperLocations.length == <span class="number">0</span>) &#123;</span><br><span class="line">        LOGGER.warn(() -&gt; <span class="string">&quot;Property &#x27;mapperLocations&#x27; was specified but matching resources are not found.&quot;</span>);</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="keyword">for</span> (Resource mapperLocation : <span class="built_in">this</span>.mapperLocations) &#123;</span><br><span class="line">            <span class="keyword">if</span> (mapperLocation == <span class="literal">null</span>) &#123;</span><br><span class="line">                <span class="keyword">continue</span>;</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">              	<span class="comment">// 对每一个mapper.xml文件进行解析</span></span><br><span class="line">                <span class="type">XMLMapperBuilder</span> <span class="variable">xmlMapperBuilder</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">XMLMapperBuilder</span>(mapperLocation.getInputStream(),</span><br><span class="line">                    targetConfiguration, mapperLocation.toString(), targetConfiguration.getSqlFragments());</span><br><span class="line">                xmlMapperBuilder.parse();</span><br><span class="line">            &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">                <span class="keyword">throw</span> <span class="keyword">new</span> <span class="title class_">NestedIOException</span>(<span class="string">&quot;Failed to parse mapping resource: &#x27;&quot;</span> + mapperLocation + <span class="string">&quot;&#x27;&quot;</span>, e);</span><br><span class="line">            &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">                ErrorContext.instance().reset();</span><br><span class="line">            &#125;</span><br><span class="line">            LOGGER.debug(() -&gt; <span class="string">&quot;Parsed mapper file: &#x27;&quot;</span> + mapperLocation + <span class="string">&quot;&#x27;&quot;</span>);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    LOGGER.debug(() -&gt; <span class="string">&quot;Property &#x27;mapperLocations&#x27; was not specified.&quot;</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>初步猜测：sql信息就是在这里面被装载进去的，重点看看<code>xmlMapperBuilder.parse();</code></p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">parse</span><span class="params">()</span> &#123;</span><br><span class="line">  <span class="keyword">if</span> (!configuration.isResourceLoaded(resource)) &#123;</span><br><span class="line">    configurationElement(parser.evalNode(<span class="string">&quot;/mapper&quot;</span>));</span><br><span class="line">    configuration.addLoadedResource(resource);</span><br><span class="line">    <span class="comment">// debug发现，Configuration中mappedStatements在执行该方法之后，mapper方法数量就变多了。</span></span><br><span class="line">    bindMapperForNamespace();</span><br><span class="line">  &#125;</span><br><span class="line">  parsePendingResultMaps();</span><br><span class="line">  parsePendingCacheRefs();</span><br><span class="line">  parsePendingStatements();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>而<code>bindMapperForNamespace</code>里面，是在执行<code>configuration.addMapper(boundType);</code>之后方法变多的。这个方法最终调用的是<code>MybatisMapperRegistry.addMapper()</code>，这个方法里面最终会转去调用<code>MybatisMapperAnnotationBuilder.parse()</code>方法，将mapper的方法加入到mappedStatements中。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">java复制代码<span class="meta">@Override</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">parse</span><span class="params">()</span> &#123;</span><br><span class="line">  	......</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            <span class="comment">// https://github.com/baomidou/mybatis-plus/issues/3038</span></span><br><span class="line">            <span class="keyword">if</span> (GlobalConfigUtils.isSupperMapperChildren(configuration, type)) &#123;</span><br><span class="line">              	<span class="comment">// 执行该步骤之后，新增了mappestatment</span></span><br><span class="line">                parserInjector();</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; <span class="keyword">catch</span> (IncompleteElementException e) &#123;</span><br><span class="line">            configuration.addIncompleteMethod(<span class="keyword">new</span> <span class="title class_">InjectorResolver</span>(<span class="built_in">this</span>));</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    parsePendingMethods();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>parserInjector方法如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">void</span> <span class="title function_">parserInjector</span><span class="params">()</span> &#123;</span><br><span class="line">    GlobalConfigUtils.getSqlInjector(configuration).inspectInject(assistant, type);</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">//GlobalConfigUtils.getSqlInjector</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> ISqlInjector <span class="title function_">getSqlInjector</span><span class="params">(Configuration configuration)</span> &#123;</span><br><span class="line">    <span class="keyword">return</span> getGlobalConfig(configuration).getSqlInjector();</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">//getSqlInjector()</span></span><br><span class="line"><span class="keyword">private</span> <span class="type">ISqlInjector</span> <span class="variable">sqlInjector</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">DefaultSqlInjector</span>();</span><br><span class="line"><span class="comment">//MybatisPlusAutoConfiguration.sqlSessionFactory#sqlInjector</span></span><br><span class="line"><span class="built_in">this</span>.getBeanThen(ISqlInjector.class, globalConfig::setSqlInjector);</span><br></pre></td></tr></table></figure>
+
+<p>我们可以看到，通过一连串的方法拿到ISqlInjector实现类。默认是DefaultSqlInjector，但是如果Spring中被手动注入了该实现类的话，就会在自动配置的时候，修改为我们自定义的SqlInjector。</p>
+<p><img src="https://p6-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/ab28d15821f34d3d834ade63a0b01501~tplv-k3u1fbpfcp-zoom-in-crop-mark:4536:0:0:0.awebp" alt="image-20210830230401071.png"></p>
+<p>这里就会转到我们自定义的逻辑了，但是我们这里CustomSqlInjector是extends DefaultSqlInjector的，所以逻辑还是在DefaultSqlInjector里面。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//DefaultSqlInjector</span></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="keyword">public</span> List&lt;AbstractMethod&gt; <span class="title function_">getMethodList</span><span class="params">(Class&lt;?&gt; mapperClass)</span> &#123;</span><br><span class="line">    <span class="keyword">return</span> Stream.of(</span><br><span class="line">        <span class="keyword">new</span> <span class="title class_">Insert</span>(),</span><br><span class="line">        <span class="keyword">new</span> <span class="title class_">Delete</span>(),</span><br><span class="line">      <span class="comment">//....</span></span><br><span class="line">    ).collect(toList());</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">//AbstractSqlInjector</span></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">inspectInject</span><span class="params">(MapperBuilderAssistant builderAssistant, Class&lt;?&gt; mapperClass)</span> &#123;</span><br><span class="line">    Class&lt;?&gt; modelClass = extractModelClass(mapperClass);</span><br><span class="line">    <span class="keyword">if</span> (modelClass != <span class="literal">null</span>) &#123;</span><br><span class="line">        <span class="type">String</span> <span class="variable">className</span> <span class="operator">=</span> mapperClass.toString();</span><br><span class="line">        Set&lt;String&gt; mapperRegistryCache = GlobalConfigUtils.getMapperRegistryCache(builderAssistant.getConfiguration());</span><br><span class="line">        <span class="keyword">if</span> (!mapperRegistryCache.contains(className)) &#123;</span><br><span class="line">          	<span class="comment">// 可以看到这里拿取我们CustomSqlInjector返回的AbstractMethod list，然后循环调用inject</span></span><br><span class="line">            List&lt;AbstractMethod&gt; methodList = <span class="built_in">this</span>.getMethodList(mapperClass);</span><br><span class="line">            <span class="keyword">if</span> (CollectionUtils.isNotEmpty(methodList)) &#123;</span><br><span class="line">                <span class="type">TableInfo</span> <span class="variable">tableInfo</span> <span class="operator">=</span> TableInfoHelper.initTableInfo(builderAssistant, modelClass);</span><br><span class="line">                <span class="comment">// 循环注入自定义方法</span></span><br><span class="line">                methodList.forEach(m -&gt; m.inject(builderAssistant, mapperClass, modelClass, tableInfo));</span><br><span class="line">            &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                logger.debug(mapperClass.toString() + <span class="string">&quot;, No effective injection method was found.&quot;</span>);</span><br><span class="line">            &#125;</span><br><span class="line">            mapperRegistryCache.add(className);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">//AbstractMethod</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">inject</span><span class="params">(MapperBuilderAssistant builderAssistant, Class&lt;?&gt; mapperClass, Class&lt;?&gt; modelClass, TableInfo tableInfo)</span> &#123;</span><br><span class="line">    <span class="built_in">this</span>.configuration = builderAssistant.getConfiguration();</span><br><span class="line">    <span class="built_in">this</span>.builderAssistant = builderAssistant;</span><br><span class="line">    <span class="built_in">this</span>.languageDriver = configuration.getDefaultScriptingLanguageInstance();</span><br><span class="line">    <span class="comment">/* 注入自定义方法 */</span></span><br><span class="line">    injectMappedStatement(mapperClass, modelClass, tableInfo);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里就很清楚了，这里面一系列的模板方法模式的类，预留了钩子让子类去实现。</p>
+<p><code>DefaultSqlInjector</code>这个类只是为了提供哪些方法需要被注入到mappedStatements中，这个list将被抽象类<code>AbstractSqlInjector</code>钩子调用。</p>
+<p><code>AbstractSqlInjector</code>主要就是循环<code>getMethodList</code>返回的AbstractMethod组成的List，然后调用inject方法。</p>
+<p><code>AbstractMethod</code>的<code>inject</code>也就是我们自己定义的逻辑。</p>
+<p><code>SaveBatch</code>在构建好一个MappedStatement对象需要的元素后，调用<code>addInsertMappedStatement</code>将插入到Configuration的mappedStatements中。</p>
+<p>分析完毕。</p>
+<h2 id="番外"><a href="#番外" class="headerlink" title="番外"></a>番外</h2><p>mybatis-plus除了BaseMapper之外，还有一些公共的方法，是放在一个 <code>ServiceImpl</code>的类中的，很多人在service层继承这个类来获取这些功能，我一直很不喜欢这种方式：</p>
+<ul>
+<li>在Service层继承这个东西，感觉像是把Dao的功能迁移到了Service层面了，层次结构有点不舒服（当然实际使用没什么影响）。</li>
+<li>这个ServiceImpl里面很多方法被强制加了是事务注解，我们都无法改变！这个比较糟糕，多数据源的时候这些事务注解会导致数据源切换失败。</li>
+</ul>
+<p>我的想法是这些方法能不能再落到BaseMapper层？经过这次分析发现，确实不太合适：BaseMapper里面的基础方法一般都对应这一条SQL，这条SQL是能被完整构建的。</p>
+<p>但是在ServiceImpl里面的方法，很多其实都是打包多条SQL然后统一提交进行flush操作的，甚至一写比如saveOrUpdate方法都是执行查询，然后处理后再更新或者插入。这些都不是单个SQL能完成的任务，因此mybatis-plus将这些逻辑只能放在ServiceImpl中。</p>
+<p>如果想将这些方法，还是放在BaseMapper中，那么可能就需要去特别的修改MapperProxy代理类了。相较而言，放在ServiceImpl还是不错的选择。</p>
+
+      
+    </div>
+
+    
+    
+    
+      <footer class="post-footer">
+        <div class="post-eof"></div>
+      </footer>
+  </article>
+  
+  
+  
+
+      
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
     <link itemprop="mainEntityOfPage" href="https://ethanwhite-chen.github.io/2023/05/24/%E5%A6%82%E4%BD%95%E4%BF%9D%E9%9A%9C%E7%BC%93%E5%AD%98%E5%92%8C%E6%95%B0%E6%8D%AE%E5%BA%93%E7%9A%84%E4%B8%80%E8%87%B4%E6%80%A7%EF%BC%88%E8%B6%85%E8%AF%A6%E7%BB%86%E6%A1%88%E4%BE%8B%EF%BC%89/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1832,478 +2387,6 @@
   
   
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://ethanwhite-chen.github.io/2023/05/23/%E8%AF%B4%E2%BC%80%E4%B8%8BJVM%E4%B8%AD%EF%BC%8C%E5%93%AA%E4%BA%9B%E6%98%AF%E5%85%B1%E4%BA%AB%E5%8C%BA%EF%BC%8C%E5%93%AA%E4%BA%9B%E5%8F%AF%E4%BB%A5%E4%BD%9C%E4%B8%BAgc-root/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="EthanWhite-Chen">
-      <meta itemprop="description" content="不积跬步无以至千里，不积小流无以成江河。分享点滴成长，就有光明未来！">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="ykchen的个人博客">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/05/23/%E8%AF%B4%E2%BC%80%E4%B8%8BJVM%E4%B8%AD%EF%BC%8C%E5%93%AA%E4%BA%9B%E6%98%AF%E5%85%B1%E4%BA%AB%E5%8C%BA%EF%BC%8C%E5%93%AA%E4%BA%9B%E5%8F%AF%E4%BB%A5%E4%BD%9C%E4%B8%BAgc-root/" class="post-title-link" itemprop="url">说⼀下JVM中，哪些是共享区，哪些可以作为gc root</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-              
-
-              <time title="Created: 2023-05-23 18:24:58 / Modified: 18:44:28" itemprop="dateCreated datePublished" datetime="2023-05-23T18:24:58+08:00">2023-05-23</time>
-            </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E9%9D%A2%E8%AF%95%E9%A2%98%E7%9B%AE/" itemprop="url" rel="index"><span itemprop="name">面试题目</span></a>
-                </span>
-            </span>
-
-          <br>
-            <span class="post-meta-item" title="Symbols count in article">
-              <span class="post-meta-item-icon">
-                <i class="far fa-file-word"></i>
-              </span>
-                <span class="post-meta-item-text">Symbols count in article: </span>
-              <span>2.3k</span>
-            </span>
-            <span class="post-meta-item" title="Reading time">
-              <span class="post-meta-item-icon">
-                <i class="far fa-clock"></i>
-              </span>
-                <span class="post-meta-item-text">Reading time &asymp;</span>
-              <span>4 mins.</span>
-            </span>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="1-堆区和⽅法区是所有线程共享的，栈、本地⽅法栈、程序计数器是每个线程独有的"><a href="#1-堆区和⽅法区是所有线程共享的，栈、本地⽅法栈、程序计数器是每个线程独有的" class="headerlink" title="1.堆区和⽅法区是所有线程共享的，栈、本地⽅法栈、程序计数器是每个线程独有的"></a>1.堆区和⽅法区是所有线程共享的，栈、本地⽅法栈、程序计数器是每个线程独有的</h1><figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">堆区和⽅法区是所有线程共享的，栈、本地⽅法栈、程序计数器是每个线程独有的</span><br><span class="line">堆: 不用多说了,放对象的地方</span><br><span class="line">方法区: 类定义的成员变量丶常量丶静态变量丶方法都在这里</span><br><span class="line">栈: 程序运行才有的,会把运行时的方法压入栈,里面有局部变量等东西</span><br><span class="line">本地方法栈: 操作系统方法</span><br><span class="line">程序计数器: 标记代码走到哪里了</span><br></pre></td></tr></table></figure>
-
-
-
-
-<img src="/2023/05/23/%E8%AF%B4%E2%BC%80%E4%B8%8BJVM%E4%B8%AD%EF%BC%8C%E5%93%AA%E4%BA%9B%E6%98%AF%E5%85%B1%E4%BA%AB%E5%8C%BA%EF%BC%8C%E5%93%AA%E4%BA%9B%E5%8F%AF%E4%BB%A5%E4%BD%9C%E4%B8%BAgc-root/05/23/%E8%AF%B4%E2%BC%80%E4%B8%8BJVM%E4%B8%AD%EF%BC%8C%E5%93%AA%E4%BA%9B%E6%98%AF%E5%85%B1%E4%BA%AB%E5%8C%BA%EF%BC%8C%E5%93%AA%E4%BA%9B%E5%8F%AF%E4%BB%A5%E4%BD%9C%E4%B8%BAgc-root/94d2022bc0284ef291f54f1b1a48bd65.png" class title="img">
-
-<h1 id="2、什么是gc-root"><a href="#2、什么是gc-root" class="headerlink" title="2、什么是gc root"></a>2、什么是gc root</h1><p>JVM在进⾏垃圾回收时，需要找到“垃圾”对象，也就是没有被引⽤的对象，但是直接<br>找“垃圾”对象是⽐较耗时的，所以反过来，先找“⾮垃圾”对象，也就是正常对象，那么就需要从某<br>些“根”开始去找，根据这些“根”的引⽤路径找到正常对象，⽽这些“根”有⼀个特征，就是它只会引⽤其他<br>对象，⽽不会被其他对象引⽤，例如：栈中的本地变量、⽅法区中的静态变量、本地⽅法栈中的变量、正<br>在运⾏的线程等可以作为gc root。</p>
-<p><strong>什么是是可达性分析算法？</strong></p>
-<p>现代虚拟机基本都是采用可达性分析算法来判断对象是否存活，可达性算法的原理是以一系列叫做  <strong>GC Root</strong> 的对象为起点出发，引出它们指向的下一个节点，再以下个节点为起点，引出此节点指向的下一个结点。这样通过 GC Root 串成的一条线就叫引用链），直到所有的结点都遍历完毕,如果相关对象不在任意一个以 <strong>GC Root</strong> 为起点的引用链中，则这些对象会被判断为垃圾对象,会被 GC 回收。</p>
-<img src="/2023/05/23/%E8%AF%B4%E2%BC%80%E4%B8%8BJVM%E4%B8%AD%EF%BC%8C%E5%93%AA%E4%BA%9B%E6%98%AF%E5%85%B1%E4%BA%AB%E5%8C%BA%EF%BC%8C%E5%93%AA%E4%BA%9B%E5%8F%AF%E4%BB%A5%E4%BD%9C%E4%B8%BAgc-root/05/23/%E8%AF%B4%E2%BC%80%E4%B8%8BJVM%E4%B8%AD%EF%BC%8C%E5%93%AA%E4%BA%9B%E6%98%AF%E5%85%B1%E4%BA%AB%E5%8C%BA%EF%BC%8C%E5%93%AA%E4%BA%9B%E5%8F%AF%E4%BB%A5%E4%BD%9C%E4%B8%BAgc-root/aHR0cHM6Ly9tbWJpei5xcGljLmNuL21tYml6X3BuZy9PeXdleXNDU2VMVXJZcVBpY2pWd2p1TUNoUHJQaWNOSGRYdlpMbXg5SGRlTmliUlFqbkZad1VCRlhUUTZtSnk3OWFqeDRCZHFGTWljSWlhVzRCTlFhR1RaV2liZy82NDA" class title="img">
-
-<p>如图示，如果用可达性算法即可解决上述循环引用的问题，因为从<strong>GC Root</strong> 出发没有到达 a,b,所以 a，b 可回收。</p>
-<p><strong>a, b 对象可回收，就一定会被回收吗?</strong></p>
-<p>并不是，对象的 finalize 方法给了对象一次垂死挣扎的机会，当对象不可达（可回收）时，当发生GC时，会先判断对象是否执行了 finalize 方法，如果未执行，则会先执行 finalize 方法，我们可以在此方法里将当前对象与 GC Roots 关联，这样执行 finalize 方法之后，GC 会再次判断对象是否可达，如果不可达，则会被回收，如果可达，则不回收！</p>
-<p><strong>注意：</strong> finalize 方法只会被执行一次，如果第一次执行 finalize 方法此对象变成了可达确实不会回收，但如果对象再次被 GC，则会忽略 finalize 方法，对象会被回收！这一点切记!</p>
-<p><strong>GC Roots 到底是什么东西呢，哪些对象可以作为 GC Root 呢？</strong></p>
-<ul>
-<li><p>虚拟机栈（栈帧中的本地变量表）中引用的对象</p>
-</li>
-<li><p>本地方法栈中 JNI（即一般说的 Native 方法）引用的对象</p>
-</li>
-<li><p>方法区中类静态属性引用的对象</p>
-</li>
-<li><p>方法区中常量引用的对象</p>
-</li>
-<li><p>便于记忆，称他为两栈两方法！下面我们一一介绍一下：</p>
-<p>1、虚拟机栈中引用的对象</p>
-<p>如下代码所示，a 是栈帧中的本地变量，当 a &#x3D; null 时，由于此时 a 充当了 <strong>GC Root</strong> 的作用，a 与原来指向的实例 <strong>new Test()</strong> 断开了连接，所以对象会被回收。</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">publicclass Test &#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span>  <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> &#123;</span><br><span class="line"></span><br><span class="line">	<span class="type">Test</span> <span class="variable">a</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Test</span>();</span><br><span class="line"></span><br><span class="line">	a = <span class="literal">null</span>;</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>2、方法区中类静态属性引用的对象</p>
-<p>如下代码所示，当栈帧中的本地变量 a &#x3D; null 时，由于 a 原来指向的对象与 GC Root (变量 a) 断开了连接，所以 a 原来指向的对象会被回收，而由于我们给 s 赋值了变量的引用，s 在此时是类静态属性引用，充当了 GC Root 的作用，它指向的对象依然存活!</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">Test</span> &#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> Test s;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span>  <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> &#123;</span><br><span class="line">	<span class="type">Test</span> <span class="variable">a</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Test</span>();</span><br><span class="line">	a.s = <span class="keyword">new</span> <span class="title class_">Test</span>();</span><br><span class="line">	a = <span class="literal">null</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>3、方法区中常量引用的对象</p>
-<p>如下代码所示，常量 s 指向的对象并不会因为 a 指向的对象被回收而回收</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">Test</span> &#123;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="type">Test</span> <span class="variable">s</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Test</span>();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> &#123;</span><br><span class="line">	    <span class="type">Test</span> <span class="variable">a</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="title class_">Test</span>();</span><br><span class="line">	    a = <span class="literal">null</span>;</span><br><span class="line">        &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>4、本地方法栈中 JNI 引用的对象</p>
-<p>这是简单给不清楚本地方法为何物的童鞋简单解释一下：所谓本地方法就是一个 java 调用非 java 代码的接口，该方法并非 Java 实现的，可能由 C 或 Python等其他语言实现的， Java 通过 JNI 来调用本地方法， 而本地方法是以库文件的形式存放的（在 WINDOWS 平台上是 DLL 文件形式，在 UNIX 机器上是 SO 文件形式）。通过调用本地的库文件的内部方法，使 JAVA 可以实现和本地机器的紧密联系，调用系统级的各接口方法，还是不明白？见文末参考，对本地方法定义与使用有详细介绍。</p>
-<p>当调用 Java 方法时，虚拟机会创建一个栈桢并压入 Java 栈，而当它调用的是本地方法时，虚拟机会保持 Java 栈不变，不会在 Java 栈祯中压入新的祯，虚拟机只是简单地动态连接并直接调用指定的本地方法。</p>
-<img src="/2023/05/23/%E8%AF%B4%E2%BC%80%E4%B8%8BJVM%E4%B8%AD%EF%BC%8C%E5%93%AA%E4%BA%9B%E6%98%AF%E5%85%B1%E4%BA%AB%E5%8C%BA%EF%BC%8C%E5%93%AA%E4%BA%9B%E5%8F%AF%E4%BB%A5%E4%BD%9C%E4%B8%BAgc-root/05/23/%E8%AF%B4%E2%BC%80%E4%B8%8BJVM%E4%B8%AD%EF%BC%8C%E5%93%AA%E4%BA%9B%E6%98%AF%E5%85%B1%E4%BA%AB%E5%8C%BA%EF%BC%8C%E5%93%AA%E4%BA%9B%E5%8F%AF%E4%BB%A5%E4%BD%9C%E4%B8%BAgc-root/aHR0cHM6Ly9tbWJpei5xcGljLmNuL21tYml6X3BuZy9PeXdleXNDU2VMVXJZcVBpY2pWd2p1TUNoUHJQaWNOSGRYdWhiZDlIQ0xCSVlSQmVrUXFpY3M3WEJyajB2VlVWU1BUSFRpYkpidXRyZEdSV2liMU1sRGQxNkpRLzY0MA" class title="img">
-
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">JNIEXPORT void JNICALL Java_com_pecuyu_jnirefdemo_MainActivity_newStringNative(JNIEnv *env, jobject instance，jstring jmsg) &#123;</span><br><span class="line"></span><br><span class="line">...</span><br><span class="line"></span><br><span class="line">   // 缓存String的class</span><br><span class="line"></span><br><span class="line">   jclass jc = (*env)-&gt;FindClass(env, STRING_PATH);</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>如上代码所示，当 java 调用以上本地方法时，jc 会被本地方法栈压入栈中, jc 就是我们说的本地方法栈中 JNI 的对象引用，因此只会在此本地方法执行完成后才会被释放。</p>
-</li>
-</ul>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://ethanwhite-chen.github.io/2023/05/23/%E4%BD%A0%E4%BB%AC%E9%A1%B9%E7%9B%AE%E5%A6%82%E4%BD%95%E6%8E%92%E6%9F%A5JVM%E9%97%AE%E9%A2%98/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="EthanWhite-Chen">
-      <meta itemprop="description" content="不积跬步无以至千里，不积小流无以成江河。分享点滴成长，就有光明未来！">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="ykchen的个人博客">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/05/23/%E4%BD%A0%E4%BB%AC%E9%A1%B9%E7%9B%AE%E5%A6%82%E4%BD%95%E6%8E%92%E6%9F%A5JVM%E9%97%AE%E9%A2%98/" class="post-title-link" itemprop="url">你们项目如何排查JVM问题</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-              
-
-              <time title="Created: 2023-05-23 17:31:35 / Modified: 18:23:39" itemprop="dateCreated datePublished" datetime="2023-05-23T17:31:35+08:00">2023-05-23</time>
-            </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E9%9D%A2%E8%AF%95%E9%A2%98%E7%9B%AE/" itemprop="url" rel="index"><span itemprop="name">面试题目</span></a>
-                </span>
-            </span>
-
-          <br>
-            <span class="post-meta-item" title="Symbols count in article">
-              <span class="post-meta-item-icon">
-                <i class="far fa-file-word"></i>
-              </span>
-                <span class="post-meta-item-text">Symbols count in article: </span>
-              <span>8.5k</span>
-            </span>
-            <span class="post-meta-item" title="Reading time">
-              <span class="post-meta-item-icon">
-                <i class="far fa-clock"></i>
-              </span>
-                <span class="post-meta-item-text">Reading time &asymp;</span>
-              <span>16 mins.</span>
-            </span>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1 id="一、对于还在正常运行的系统"><a href="#一、对于还在正常运行的系统" class="headerlink" title="一、对于还在正常运行的系统"></a>一、对于还在正常运行的系统</h1><p>1、可以使用jmap来查看JVM中各个区域的使用情况。</p>
-<p>2、可以通过jstack来查看线程的运行情况，比如哪些线程阻塞、是否出现了死锁。</p>
-<p>3、可以通过jstat命令来查看垃圾回收的情况，特别是fullgc比较频繁，那么就得进行调优了。</p>
-<p>4、通过各个命令的结果，或者jvisualvm等工具来进行分析。</p>
-<p>5、首先，初步猜测频繁fullgc的原因，如果频繁发生fullgc但是又一直没有出现内存溢出，那么表示fullgc实际上是回收了很多对象，所以这些对象最好能在younggc过程中直接回收掉，避免这些对象进入到老年代，对于这种情况，就要考虑这些存活时间不长的对象是不是比较大，导致年轻代放不下，直接进入到老年代，尝试加大年轻代的大小，如果改完之后，fullgc减小，则说明修改有效。</p>
-<p>6、同时，还可以找到占用CPU最多的线程，定位到具体的方法，优化这个方法的执行，看是否能避免某些对象的创建，从而节省内存。</p>
-<h1 id="二、对于已经发生了OOM的系统"><a href="#二、对于已经发生了OOM的系统" class="headerlink" title="二、对于已经发生了OOM的系统"></a>二、对于已经发生了OOM的系统</h1><p>1、一般生产系统中都会设置当系统发生了OOM时，生成当时的dump文件（-XX:+HeadDumpOnOutOfMemoryError -XX:HeadDumpPath&#x3D;&#x2F;usr&#x2F;local&#x2F;base）</p>
-<p>2、我们可以利用jsisualvm等工具来分析dump文件</p>
-<p>3、根据dump文件找到异常的实例对象，和异常的线程（占用CPU高），定位到具体的代码</p>
-<p>4、然后再进行详细的分析和调试</p>
-<h1 id="JVM-究竟需不需要调优？"><a href="#JVM-究竟需不需要调优？" class="headerlink" title="JVM 究竟需不需要调优？"></a>JVM 究竟需不需要调优？</h1><p>JVM 经过这么多年的发展和验证，整体是非常健壮的。个人认为99%的情况下，基本用不到 JVM 调优。</p>
-<p>通常来说，我们的 JVM 参数配置大多还是会遵循 JVM 官方的建议，例如：</p>
-<ul>
-<li>-XX:NewRatio&#x3D;2，年轻代:老年代&#x3D;1:2</li>
-<li>-XX:SurvivorRatio&#x3D;8，eden:survivor&#x3D;8:1</li>
-<li>堆内存设置为物理内存的3&#x2F;4左右</li>
-<li>等等</li>
-</ul>
-<p>JVM 参数的默认（推荐）值都是经过 JVM 团队的反复测试和前人的充分验证得出的比较合理的值，因此通常来说是比较靠谱和通用的，一般不会出大问题。</p>
-<p>当然，更重要的是，大部分的应用 QPS 都不到10，数据量不到几万，这种低压环境下，想让 JVM 出问题，说实话也挺难的。</p>
-<img src="/2023/05/23/%E4%BD%A0%E4%BB%AC%E9%A1%B9%E7%9B%AE%E5%A6%82%E4%BD%95%E6%8E%92%E6%9F%A5JVM%E9%97%AE%E9%A2%98/05/23/%E4%BD%A0%E4%BB%AC%E9%A1%B9%E7%9B%AE%E5%A6%82%E4%BD%95%E6%8E%92%E6%9F%A5JVM%E9%97%AE%E9%A2%98/v2-f983ea90573f9499a401b09a639a4325_720w.webp" class title="img">
-
-<p>大部分同学更常遇到的应该是自己的代码 bug 导致 OOM、CPU load高、GC频繁啥的，这些场景也基本都是代码修复即可，通常不需要动 JVM。</p>
-<p>当然，俗话说得好，凡事无绝对，还是有一小部分场景，是可能需要用到 JVM 调优的。具体哪些场景，我们在下面介绍。</p>
-<p>值得一提的是，我们这边所说的 JVM 调优更多的是针对自己的业务场景对 JVM 参数进行优化调整，使其更适合我们的业务，而不是指对 JVM 源码的改动。</p>
-<h1 id="JVM-调优没有什么必要，使用性能更好的垃圾回收器就能解决问题了？"><a href="#JVM-调优没有什么必要，使用性能更好的垃圾回收器就能解决问题了？" class="headerlink" title="JVM 调优没有什么必要，使用性能更好的垃圾回收器就能解决问题了？**"></a>JVM 调优没有什么必要，使用性能更好的垃圾回收器就能解决问题了？**</h1><p>这是我在网上看到的一个说法，因为赞同的人比较多，我估计有不少同学也会有这个想法，因此在这边谈下自己的看法。</p>
-<p><strong>1）实战角度</strong></p>
-<p>不考虑应付面试的因素，升级垃圾回收器确实会是最有效的方式之一，例如：CMS 升级到 G1，甚至 ZGC。</p>
-<p>这个很容易理解，更高版本的垃圾回收器相当于是 JVM 开发人员对 JVM 做的优化，人家毕竟是专门做这个的，所以通常来说升级高版本的性能会有不少的提升。</p>
-<p>G1 目前已经有开始在逐渐应用开来，周围有不少团队在 JDK8 中使用了 G1，就我了解到的，还是存在不少问题的，不少同学在不断进行参数的调整，而在 JDK11 中能优化成啥样还有待验证。</p>
-<p>ZGC 目前应用的还比较少，仅从对外公布的数据来看很好看，最大暂停时间不超过10ms，甚至是1ms，大家都抱有很高的期望。但是从目前我收集到的一些资料来看，ZGC 也并不是银弹，已知的明显问题有：</p>
-<ul>
-<li>吞吐量相较于 G1 会有所下降，官方称最大不超过15%</li>
-<li>ZGC如果遇到非常高的对象分配速率（allocation rate）的话会跟不上，目前唯一有效的“调优”方式就是增大整个GC堆的大小来让ZGC有更大的喘息空间——R大与ZGC领队沟通后的原话</li>
-</ul>
-<p>而且，随着后续 ZGC 应用开来，后续一定会不断出现更多问题的。</p>
-<p>整体而言，个人觉得 JVM 调优在某些场景下还是有必要的，毕竟有句话叫：没有最好的，只有最合适的。</p>
-<p><strong>2）面试角度</strong></p>
-<p>如果你回答直接升级垃圾收集器，面试官可能也赞同，但是这个话题可能就这样结束了，面试官大概率没听到他想要的回答，你在这题的肯定拿不到加分，甚至可能会被扣分。</p>
-<p>所以，在面试的时候，你可以回答升级垃圾收集器，但是你不能只回答升级垃圾收集器。</p>
-<h1 id="JVM-何时优化？"><a href="#JVM-何时优化？" class="headerlink" title="JVM 何时优化？"></a>JVM 何时优化？</h1><p>忌过早优化。《计算机程序设计艺术》的作者高德纳（Donald Ervin Knuth）曾说过一句经典的话：</p>
-<blockquote>
-<p>The real problem is that programmers have spent far too much time worrying about efficiency in the wrong places and at the wrong times; premature optimization is the root of all evil (or at least most of it) in programming.<br>真正的问题是，程序猿在错误的地方和错误的时间花了太多的时间担心效率问题；过早的优化是编程中所有（或者至少是大部分）罪恶的根源。</p>
-</blockquote>
-<p>忌过早并不是说就完全不管，比较正确的做法应该是给核心服务的一些重要 JVM 指标配上监控告警，当指标出现波动或者异常时，能及时介入排查。</p>
-<p><strong>面试官：JVM 有哪些核心指标？合理范围应该是多少？</strong></p>
-<p>这个问题没有统一的答案，因为每个服务对AVG&#x2F;TP999&#x2F;TP9999等性能指标的要求是不同的，因此合理的范围也不同。</p>
-<p>为了防止面试官追问，对于普通的 Java 后端应用来说，我这边给出一份相对合理的范围值。以下指标都是对于单台服务器来说：</p>
-<ul>
-<li>jvm.gc.time：每分钟的GC耗时在1s以内，500ms以内尤佳</li>
-<li>jvm.gc.meantime：每次YGC耗时在100ms以内，50ms以内尤佳</li>
-<li>jvm.fullgc.count：FGC最多几小时1次，1天不到1次尤佳</li>
-<li>jvm.fullgc.time：每次FGC耗时在1s以内，500ms以内尤佳</li>
-</ul>
-<p>通常来说，只要这几个指标正常，其他的一般不会有问题，如果其他地方出了问题，一般都会影响到这几个指标。</p>
-<h1 id="JVM-优化步骤？"><a href="#JVM-优化步骤？" class="headerlink" title="JVM 优化步骤？"></a>JVM 优化步骤？</h1><p><strong>4.1、分析和定位当前系统的瓶颈</strong></p>
-<p>对于JVM的核心指标，我们的关注点和常用工具如下：</p>
-<p><strong>1）CPU指标</strong></p>
-<ul>
-<li>查看占用CPU最多的进程</li>
-<li>查看占用CPU最多的线程</li>
-<li>查看线程堆栈快照信息</li>
-<li>分析代码执行热点</li>
-<li>查看哪个代码占用CPU执行时间最长</li>
-<li>查看每个方法占用CPU时间比例</li>
-</ul>
-<p>常见的命令：</p>
-<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">// 显示系统各个进程的资源使用情况</span><br><span class="line">top</span><br><span class="line">// 查看某个进程中的线程占用情况</span><br><span class="line">top -Hp pid</span><br><span class="line">// 查看当前 Java 进程的线程堆栈信息</span><br><span class="line">jstack pid</span><br></pre></td></tr></table></figure>
-
-<p>常见的工具：JProfiler、JVM Profiler、Arthas等。</p>
-<p><strong>2）JVM 内存指标</strong></p>
-<ul>
-<li>查看当前 JVM 堆内存参数配置是否合理</li>
-<li>查看堆中对象的统计信息</li>
-<li>查看堆存储快照，分析内存的占用情况</li>
-<li>查看堆各区域的内存增长是否正常</li>
-<li>查看是哪个区域导致的GC</li>
-<li>查看GC后能否正常回收到内存</li>
-</ul>
-<p>常见的命令：</p>
-<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">// 查看当前的 JVM 参数配置</span><br><span class="line">ps -ef | grep java</span><br><span class="line">// 查看 Java 进程的配置信息，包括系统属性和JVM命令行标志</span><br><span class="line">jinfo pid</span><br><span class="line">// 输出 Java 进程当前的 gc 情况</span><br><span class="line">jstat -gc pid</span><br><span class="line">// 输出 Java 堆详细信息</span><br><span class="line">jmap -heap pid</span><br><span class="line">// 显示堆中对象的统计信息</span><br><span class="line">jmap -histo:live pid</span><br><span class="line">// 生成 Java 堆存储快照dump文件</span><br><span class="line">jmap -F -dump:format=b,file=dumpFile.phrof pid</span><br></pre></td></tr></table></figure>
-
-<p>常见的工具：Eclipse MAT、JConsole等。</p>
-<p><strong>3）JVM GC指标</strong></p>
-<ul>
-<li>查看每分钟GC时间是否正常</li>
-<li>查看每分钟YGC次数是否正常</li>
-<li>查看FGC次数是否正常</li>
-<li>查看单次FGC时间是否正常</li>
-<li>查看单次GC各阶段详细耗时，找到耗时严重的阶段</li>
-<li>查看对象的动态晋升年龄是否正常</li>
-</ul>
-<p>JVM 的 GC指标一般是从 GC 日志里面查看，默认的 GC 日志可能比较少，我们可以添加以下参数，来丰富我们的GC日志输出，方便我们定位问题。</p>
-<p>GC日志常用 JVM 参数：</p>
-<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">// 打印GC的详细信息</span><br><span class="line">-XX:+PrintGCDetails</span><br><span class="line">// 打印GC的时间戳</span><br><span class="line">-XX:+PrintGCDateStamps</span><br><span class="line">// 在GC前后打印堆信息</span><br><span class="line">-XX:+PrintHeapAtGC</span><br><span class="line">// 打印Survivor区中各个年龄段的对象的分布信息</span><br><span class="line">-XX:+PrintTenuringDistribution</span><br><span class="line">// JVM启动时输出所有参数值，方便查看参数是否被覆盖</span><br><span class="line">-XX:+PrintFlagsFinal</span><br><span class="line">// 打印GC时应用程序的停止时间</span><br><span class="line">-XX:+PrintGCApplicationStoppedTime</span><br><span class="line">// 打印在GC期间处理引用对象的时间（仅在PrintGCDetails时启用）</span><br><span class="line">-XX:+PrintReferenceGC</span><br></pre></td></tr></table></figure>
-
-<p>以上就是我们定位系统瓶颈的常用手段，大部分问题通过以上方式都能定位出问题原因，然后结合代码去找到问题根源。</p>
-<p><strong>4.2、确定优化目标</strong></p>
-<p>定位出系统瓶颈后，在优化前先制定好优化的目标是什么，例如：</p>
-<ul>
-<li>将FGC次数从每小时1次，降低到1天1次</li>
-<li>将每分钟的GC耗时从3s降低到500ms</li>
-<li>将每次FGC耗时从5s降低到1s以内</li>
-<li>…</li>
-</ul>
-<p><strong>4.3、制订优化方案</strong></p>
-<p>针对定位出的系统瓶颈制定相应的优化方案，常见的有：</p>
-<ul>
-<li>代码bug：升级修复bug。典型的有：死循环、使用无界队列。</li>
-<li>不合理的JVM参数配置：优化 JVM 参数配置。典型的有：年轻代内存配置过小、堆内存配置过小、元空间配置过小。</li>
-</ul>
-<p><strong>4.4、对比优化前后的指标，统计优化效果</strong></p>
-<p><strong>4.5、持续观察和跟踪优化效果</strong></p>
-<p><strong>4.6、如果还需要的话，重复以上步骤</strong></p>
-<h1 id="调优案例：metaspace导致频繁FGC问题"><a href="#调优案例：metaspace导致频繁FGC问题" class="headerlink" title="调优案例：metaspace导致频繁FGC问题"></a>调优案例：metaspace导致频繁FGC问题</h1><p>以下案例来源于网络或本人真实经验，皆能自圆其说，理解掌握后同学们皆可拿来与面试官对线。</p>
-<p><strong>服务环境：</strong>ParNew + CMS + JDK8</p>
-<p><strong>问题现象</strong>：服务频繁出现FGC</p>
-<p><strong>原因分析</strong>：</p>
-<p>1）首先查看GC日志，发现出现FGC的原因是metaspace空间不够</p>
-<p>对应GC日志：</p>
-<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Full GC (Metadata GC Threshold)</span><br></pre></td></tr></table></figure>
-
-<p>2）进一步查看日志发现元空间存在内存碎片化现象</p>
-<p>对应GC日志：</p>
-<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Metaspace       used 35337K, capacity 56242K, committed 56320K, reserved 1099776K</span><br></pre></td></tr></table></figure>
-
-<p>这边简单解释下这几个参数的意义</p>
-<ul>
-<li>used ：已使用的空间大小</li>
-<li>capacity：当前已经分配且未释放的空间容量大小</li>
-<li>committed：当前已经分配的空间大小</li>
-<li>reserved：预留的空间大小</li>
-</ul>
-<p>这边 used 比较容易理解，reserved 在本例不重要可以先忽略，主要是 capacity 和 committed 这2个容易搞混。</p>
-<p>结合下图来看更容易理解，元空间的分配以 chunk 为单位，当一个 ClassLoader 被垃圾回收时，所有属于它的空间（chunk）被释放，此时该 chunk 称为 Free Chunk，而 committed chunk 就是 capacity chunk 和 free chunk 之和。</p>
-<img src="/2023/05/23/%E4%BD%A0%E4%BB%AC%E9%A1%B9%E7%9B%AE%E5%A6%82%E4%BD%95%E6%8E%92%E6%9F%A5JVM%E9%97%AE%E9%A2%98/05/23/%E4%BD%A0%E4%BB%AC%E9%A1%B9%E7%9B%AE%E5%A6%82%E4%BD%95%E6%8E%92%E6%9F%A5JVM%E9%97%AE%E9%A2%98/v2-dc19b7f178ecd1fb19c51ce8ea96c4da_720w.webp" class title="img">
-
-<p>之所以说内存存在碎片化现象就是根据 used 和 capacity 的数据得来的，上面说了元空间的分配以 chunk 为单位，即使一个 ClassLoader 只加载1个类，也会独占整个 chunk，所以当出现 used 和 capacity 两者之差较大的时候，说明此时存在内存碎片化的情况。</p>
-<p>GC日志demo如下：</p>
-<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line">&#123;Heap before GC invocations=<span class="number">0</span> (full <span class="number">0</span>):</span><br><span class="line"> par <span class="keyword">new</span> generation   total <span class="number">314560</span>K, used <span class="number">141123</span>K [<span class="number">0x00000000c0000000</span>, <span class="number">0x00000000d5550000</span>, <span class="number">0x00000000d5550000</span>)</span><br><span class="line">  eden space <span class="number">279616</span>K,  <span class="number">50</span>% used [<span class="number">0x00000000c0000000</span>, <span class="number">0x00000000c89d0d00</span>, <span class="number">0x00000000d1110000</span>)</span><br><span class="line">  from space <span class="number">34944</span>K,   <span class="number">0</span>% used [<span class="number">0x00000000d1110000</span>, <span class="number">0x00000000d1110000</span>, <span class="number">0x00000000d3330000</span>)</span><br><span class="line">  to   space <span class="number">34944</span>K,   <span class="number">0</span>% used [<span class="number">0x00000000d3330000</span>, <span class="number">0x00000000d3330000</span>, <span class="number">0x00000000d5550000</span>)</span><br><span class="line"> concurrent mark-sweep generation total <span class="number">699072</span>K, used <span class="number">0</span>K [<span class="number">0x00000000d5550000</span>, <span class="number">0x0000000100000000</span>, <span class="number">0x0000000100000000</span>)</span><br><span class="line"> Metaspace       used <span class="number">35337</span>K, capacity <span class="number">56242</span>K, committed <span class="number">56320</span>K, reserved <span class="number">1099776</span>K</span><br><span class="line">  <span class="keyword">class</span> space    used <span class="number">4734</span>K, capacity <span class="number">8172</span>K, committed <span class="number">8172</span>K, reserved <span class="number">1048576</span>K</span><br><span class="line"><span class="number">1.448</span>: [Full <span class="built_in">GC</span> (Metadata GC Threshold) <span class="number">1.448</span>: [CMS: <span class="number">0</span>K-&gt;<span class="number">10221</span>K(<span class="number">699072</span>K), <span class="number">0.0487207</span> secs] <span class="number">141123</span>K-&gt;<span class="number">10221</span>K(<span class="number">1013632</span>K), [Metaspace: <span class="number">35337</span>K-&gt;<span class="number">35337</span>K(<span class="number">1099776</span>K)], <span class="number">0.0488547</span> secs] [Times: user=<span class="number">0.09</span> sys=<span class="number">0.00</span>, real=<span class="number">0.05</span> secs] </span><br><span class="line">Heap after GC invocations=<span class="number">1</span> (full <span class="number">1</span>):</span><br><span class="line"> par <span class="keyword">new</span> generation   total <span class="number">314560</span>K, used <span class="number">0</span>K [<span class="number">0x00000000c0000000</span>, <span class="number">0x00000000d5550000</span>, <span class="number">0x00000000d5550000</span>)</span><br><span class="line">  eden space <span class="number">279616</span>K,   <span class="number">0</span>% used [<span class="number">0x00000000c0000000</span>, <span class="number">0x00000000c0000000</span>, <span class="number">0x00000000d1110000</span>)</span><br><span class="line">  from space <span class="number">34944</span>K,   <span class="number">0</span>% used [<span class="number">0x00000000d1110000</span>, <span class="number">0x00000000d1110000</span>, <span class="number">0x00000000d3330000</span>)</span><br><span class="line">  to   space <span class="number">34944</span>K,   <span class="number">0</span>% used [<span class="number">0x00000000d3330000</span>, <span class="number">0x00000000d3330000</span>, <span class="number">0x00000000d5550000</span>)</span><br><span class="line"> concurrent mark-sweep generation total <span class="number">699072</span>K, used <span class="number">10221</span>K [<span class="number">0x00000000d5550000</span>, <span class="number">0x0000000100000000</span>, <span class="number">0x0000000100000000</span>)</span><br><span class="line"> Metaspace       used <span class="number">35337</span>K, capacity <span class="number">56242</span>K, committed <span class="number">56320</span>K, reserved <span class="number">1099776</span>K</span><br><span class="line">  <span class="keyword">class</span> space    used <span class="number">4734</span>K, capacity <span class="number">8172</span>K, committed <span class="number">8172</span>K, reserved <span class="number">1048576</span>K</span><br><span class="line">&#125;</span><br><span class="line">&#123;Heap before GC invocations=<span class="number">1</span> (full <span class="number">1</span>):</span><br><span class="line"> par <span class="keyword">new</span> generation   total <span class="number">314560</span>K, used <span class="number">0</span>K [<span class="number">0x00000000c0000000</span>, <span class="number">0x00000000d5550000</span>, <span class="number">0x00000000d5550000</span>)</span><br><span class="line">  eden space <span class="number">279616</span>K,   <span class="number">0</span>% used [<span class="number">0x00000000c0000000</span>, <span class="number">0x00000000c0000000</span>, <span class="number">0x00000000d1110000</span>)</span><br><span class="line">  from space <span class="number">34944</span>K,   <span class="number">0</span>% used [<span class="number">0x00000000d1110000</span>, <span class="number">0x00000000d1110000</span>, <span class="number">0x00000000d3330000</span>)</span><br><span class="line">  to   space <span class="number">34944</span>K,   <span class="number">0</span>% used [<span class="number">0x00000000d3330000</span>, <span class="number">0x00000000d3330000</span>, <span class="number">0x00000000d5550000</span>)</span><br><span class="line"> concurrent mark-sweep generation total <span class="number">699072</span>K, used <span class="number">10221</span>K [<span class="number">0x00000000d5550000</span>, <span class="number">0x0000000100000000</span>, <span class="number">0x0000000100000000</span>)</span><br><span class="line"> Metaspace       used <span class="number">35337</span>K, capacity <span class="number">56242</span>K, committed <span class="number">56320</span>K, reserved <span class="number">1099776</span>K</span><br><span class="line">  <span class="keyword">class</span> space    used <span class="number">4734</span>K, capacity <span class="number">8172</span>K, committed <span class="number">8172</span>K, reserved <span class="number">1048576</span>K</span><br><span class="line"><span class="number">1.497</span>: [Full <span class="built_in">GC</span> (Last ditch collection) <span class="number">1.497</span>: [CMS: <span class="number">10221</span>K-&gt;<span class="number">3565</span>K(<span class="number">699072</span>K), <span class="number">0.0139783</span> secs] <span class="number">10221</span>K-&gt;<span class="number">3565</span>K(<span class="number">1013632</span>K), [Metaspace: <span class="number">35337</span>K-&gt;<span class="number">35337</span>K(<span class="number">1099776</span>K)], <span class="number">0.0193983</span> secs] [Times: user=<span class="number">0.03</span> sys=<span class="number">0.00</span>, real=<span class="number">0.02</span> secs] </span><br><span class="line">Heap after GC invocations=<span class="number">2</span> (full <span class="number">2</span>):</span><br><span class="line"> par <span class="keyword">new</span> generation   total <span class="number">314560</span>K, used <span class="number">0</span>K [<span class="number">0x00000000c0000000</span>, <span class="number">0x00000000d5550000</span>, <span class="number">0x00000000d5550000</span>)</span><br><span class="line">  eden space <span class="number">279616</span>K,   <span class="number">0</span>% used [<span class="number">0x00000000c0000000</span>, <span class="number">0x00000000c0000000</span>, <span class="number">0x00000000d1110000</span>)</span><br><span class="line">  from space <span class="number">34944</span>K,   <span class="number">0</span>% used [<span class="number">0x00000000d1110000</span>, <span class="number">0x00000000d1110000</span>, <span class="number">0x00000000d3330000</span>)</span><br><span class="line">  to   space <span class="number">34944</span>K,   <span class="number">0</span>% used [<span class="number">0x00000000d3330000</span>, <span class="number">0x00000000d3330000</span>, <span class="number">0x00000000d5550000</span>)</span><br><span class="line"> concurrent mark-sweep generation total <span class="number">699072</span>K, used <span class="number">3565</span>K [<span class="number">0x00000000d5550000</span>, <span class="number">0x0000000100000000</span>, <span class="number">0x0000000100000000</span>)</span><br><span class="line"> Metaspace       used <span class="number">17065</span>K, capacity <span class="number">22618</span>K, committed <span class="number">35840</span>K, reserved <span class="number">1079296</span>K</span><br><span class="line">  <span class="keyword">class</span> space    used <span class="number">1624</span>K, capacity <span class="number">2552</span>K, committed <span class="number">8172</span>K, reserved <span class="number">1048576</span>K</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>元空间主要适用于存放类的相关信息，而存在内存碎片化说明很可能创建了较多的类加载器，同时使用率较低。</p>
-<p>因此，当元空间出现内存碎片化时，我们会着重关注是不是创建了大量的类加载器。</p>
-<p>3）通过 dump 堆存储文件发现存在大量 DelegatingClassLoader</p>
-<p>通过进一步分析，发现是由于反射导致创建大量 DelegatingClassLoader。其核心原理如下：</p>
-<p>在 JVM 上，最初是通过 JNI 调用来实现方法的反射调用，当 JVM 注意到通过反射经常访问某个方法时，它将生成字节码来执行相同的操作，称为膨胀（inflation）机制。如果使用字节码的方式，则会为该方法生成一个 DelegatingClassLoader，如果存在大量方法经常反射调用，则会导致创建大量 DelegatingClassLoader。</p>
-<p><strong>反射调用频次达到多少才会从 JNI 转字节码？</strong></p>
-<p>默认是15次，可通过参数 -Dsun.reflect.inflationThreshold 进行控制，在小于该次数时会使用 JNI 的方式对方法进行调用，如果调用次数超过该次数就会使用字节码的方式生成方法调用。</p>
-<p><strong>分析结论</strong>：反射调用导致创建大量 DelegatingClassLoader，占用了较大的元空间内存，同时存在内存碎片化现象，导致元空间利用率不高，从而较快达到阈值，触发 FGC。</p>
-<p><strong>优化策略：</strong></p>
-<p>1）适当调大 metaspace 的空间大小。</p>
-<p>2）优化不合理的反射调用。例如最常见的属性拷贝工具类 BeanUtils.copyProperties 可以使用 mapstruct 替换。</p>
-<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>当被面试官问到 JVM 调优时，完全可以按照本文的脉络回答：</p>
-<ul>
-<li>首先表态如果使用合理的 JVM 参数配置，在大多数情况应该是不需要调优的——对应本文第1题</li>
-<li>其次说明可能还是存在少量场景需要调优，我们可以对一些 JVM 核心指标配置监控告警，当出现波动时人为介入分析评估——对应本文第3题</li>
-<li>最后举一个实际的调优例子来加以说明——对应本文第5题</li>
-</ul>
-<p>如果面试官反问怎么分析排查的，则可以使用本文第4题的常用命令和工具来与之对线。</p>
-<p>这一套流程下来，我相信大部分面试官都会对你印象不错。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
-    <link itemprop="mainEntityOfPage" href="https://ethanwhite-chen.github.io/2023/05/23/%E5%85%B3%E4%BA%8E%E6%AD%BB%E9%94%81%E4%BB%A5%E5%8F%8A%E5%A6%82%E4%BD%95%E6%9F%A5%E7%9C%8B%E7%BA%BF%E7%A8%8B%E6%98%AF%E5%90%A6%E6%9C%89%E6%AD%BB%E9%94%81/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.gif">
-      <meta itemprop="name" content="EthanWhite-Chen">
-      <meta itemprop="description" content="不积跬步无以至千里，不积小流无以成江河。分享点滴成长，就有光明未来！">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="ykchen的个人博客">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2023/05/23/%E5%85%B3%E4%BA%8E%E6%AD%BB%E9%94%81%E4%BB%A5%E5%8F%8A%E5%A6%82%E4%BD%95%E6%9F%A5%E7%9C%8B%E7%BA%BF%E7%A8%8B%E6%98%AF%E5%90%A6%E6%9C%89%E6%AD%BB%E9%94%81/" class="post-title-link" itemprop="url">关于死锁以及如何查看线程是否有死锁</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">Posted on</span>
-              
-
-              <time title="Created: 2023-05-23 15:51:11 / Modified: 17:02:32" itemprop="dateCreated datePublished" datetime="2023-05-23T15:51:11+08:00">2023-05-23</time>
-            </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">In</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E9%9D%A2%E8%AF%95%E9%A2%98%E7%9B%AE/" itemprop="url" rel="index"><span itemprop="name">面试题目</span></a>
-                </span>
-            </span>
-
-          <br>
-            <span class="post-meta-item" title="Symbols count in article">
-              <span class="post-meta-item-icon">
-                <i class="far fa-file-word"></i>
-              </span>
-                <span class="post-meta-item-text">Symbols count in article: </span>
-              <span>9.9k</span>
-            </span>
-            <span class="post-meta-item" title="Reading time">
-              <span class="post-meta-item-icon">
-                <i class="far fa-clock"></i>
-              </span>
-                <span class="post-meta-item-text">Reading time &asymp;</span>
-              <span>18 mins.</span>
-            </span>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>在 Java 的并发编程中，有一个问题需要特别注意，那就是死锁，如果发生了死锁，基本就是重启，而重启将会丢失运行中的数据。所以，了解死锁的形成并排查死锁到预防死锁成了一个重要的问题。</p>
-<h1 id="什么是死锁？"><a href="#什么是死锁？" class="headerlink" title="什么是死锁？"></a>什么是死锁？</h1><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br></pre></td><td class="code"><pre><span class="line">  <span class="keyword">package</span> cn.sxt.game;    </span><br><span class="line">  <span class="comment">/* 死锁</span></span><br><span class="line"><span class="comment">  *</span></span><br><span class="line"><span class="comment">  </span></span><br><span class="line"><span class="comment">  * */</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">DeadLock</span> &#123;</span><br><span class="line">      <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title function_">main</span><span class="params">(String[] args)</span> &#123;</span><br><span class="line">          Object o1=<span class="keyword">new</span> <span class="title class_">Object</span>();</span><br><span class="line">          Object o2=<span class="keyword">new</span> <span class="title class_">Object</span>();</span><br><span class="line">          Thread t1=<span class="keyword">new</span> <span class="title class_">MyThread1</span>(o1,o2);</span><br><span class="line">          Thread t2=<span class="keyword">new</span> <span class="title class_">MyThread2</span>(o1,o2);</span><br><span class="line">          t1.setName(<span class="string">&quot;t1&quot;</span>);<span class="comment">//给线程起名字t1</span></span><br><span class="line">          t2.setName(<span class="string">&quot;t2&quot;</span>);<span class="comment">//给线程起名字t2</span></span><br><span class="line">          t1.start();</span><br><span class="line">          t2.start();</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">class</span> <span class="title class_">MyThread1</span> <span class="keyword">extends</span> <span class="title class_">Thread</span>&#123;</span><br><span class="line">      Object o1;</span><br><span class="line">      Object o2;</span><br><span class="line">      <span class="keyword">public</span> <span class="title function_">MyThread1</span><span class="params">(Object o1,Object o2)</span>&#123;</span><br><span class="line">          <span class="built_in">this</span>.o1=o1;</span><br><span class="line">          <span class="built_in">this</span>.o2=o2;</span><br><span class="line">      &#125;</span><br><span class="line">  </span><br><span class="line">      <span class="meta">@Override</span></span><br><span class="line">      <span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">run</span><span class="params">()</span> &#123;</span><br><span class="line">          <span class="keyword">synchronized</span> (o1)&#123;</span><br><span class="line">              <span class="keyword">try</span> &#123;</span><br><span class="line">                  System.out.println(<span class="string">&quot;获取资源1&quot;</span>);</span><br><span class="line">                  sleep(<span class="number">1000</span>);<span class="comment">// 等待 1 秒让另一个线程拿到锁</span></span><br><span class="line">              &#125; <span class="keyword">catch</span> (InterruptedException e) &#123;</span><br><span class="line">                  e.printStackTrace();</span><br><span class="line">              &#125;</span><br><span class="line">              <span class="keyword">synchronized</span> (o2)&#123; &#125;</span><br><span class="line">    &#125;</span><br><span class="line">          &#125;</span><br><span class="line">          &#125;</span><br><span class="line">  <span class="keyword">class</span> <span class="title class_">MyThread2</span> <span class="keyword">extends</span> <span class="title class_">Thread</span>&#123;</span><br><span class="line">    Object o1;</span><br><span class="line">    Object o2;</span><br><span class="line">    <span class="keyword">public</span> <span class="title function_">MyThread2</span><span class="params">(Object o1,Object o2)</span>&#123;</span><br><span class="line">        <span class="built_in">this</span>.o1=o1;</span><br><span class="line">        <span class="built_in">this</span>.o2=o2;</span><br><span class="line">    &#125;</span><br><span class="line">      <span class="meta">@Override</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">run</span><span class="params">()</span> &#123;</span><br><span class="line">    <span class="keyword">synchronized</span> (o2)&#123;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            System.out.println(<span class="string">&quot;获取资源2&quot;</span>);</span><br><span class="line">            sleep(<span class="number">1000</span>);<span class="comment">// 等待 1 秒让另一个线程拿到锁</span></span><br><span class="line">        &#125; <span class="keyword">catch</span> (InterruptedException e) &#123;</span><br><span class="line">            e.printStackTrace();</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">synchronized</span> (o1)&#123;</span><br><span class="line"></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
-
-<p>​		这里面的代码中，我们启用了两个线程，分别抢占2个资源，但这两个资源又分别被不同的对象（字符串）锁住了。当第一个线程，进入同步块，拿到o1锁，并等待 1 秒钟去拿o2锁，当第二个线程进入同步块后，拿到o2锁，并等待 1 秒钟去拿o1锁，注意：此时， 拿着 o1 锁的线程企图拿到 o2 的锁，但这个时候，拿着 o2 的线程也想去拿o1 的锁。于是就出现了互相僵持的情况，谁也无法拿到对方的锁，整个系统就卡死了。</p>
-<p>这种情况就是死锁。</p>
-<p>像我们现在写的代码是自己故意造出来的死锁，我们能够发现，那如果是线上环境怎么办，假如我们的系统卡死了，我们怎么知道到底是哪一段代码出现了问题，有没有可能使死锁的问题。也就是如何检测死锁。</p>
-<h1 id="如何检测死锁？"><a href="#如何检测死锁？" class="headerlink" title="如何检测死锁？"></a>如何检测死锁？</h1><p>由于死锁极难通过人工的方式查出来，因此JDK 提供了命令来检测某个java进程中心线程的情况，并排查有没有死锁。 jps , 用来查看java 程序的进程号，当然在 Linux 中也可以通过别的方式获取， jstack 进程号命令则可以答应对应进程的栈信息，并找到死锁。<br>在<strong>windows使用jps的命令</strong></p>
-<figure class="highlight bat"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">C:\<span class="title">Users</span>\16047&gt;<span class="title">jps</span></span></span><br><span class="line"><span class="function">    1488 <span class="title">Jps</span></span></span><br><span class="line"><span class="function">    3028 <span class="title">Launcher</span></span></span><br><span class="line"><span class="function">    9188 <span class="title">DeadLock</span></span></span><br><span class="line"><span class="function">    2632</span></span><br><span class="line"><span class="function"><span class="title">C</span>:\<span class="title">Users</span>\16047&gt;<span class="title">jstack</span> 9188</span></span><br><span class="line"><span class="function">2020-04-14 09:05:35</span></span><br><span class="line"><span class="function"><span class="title">Full</span> <span class="title">thread</span> <span class="title">dump</span> <span class="title">Java</span> <span class="title">HotSpot</span>(<span class="title">TM</span>) 64-<span class="title">Bit</span> <span class="title">Server</span> <span class="title">VM</span> (13.0.1+9 <span class="title">mixed</span> <span class="title">mode</span>, <span class="title">sharing</span>):</span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function"><span class="title">Threads</span> <span class="title">class</span> <span class="title">SMR</span> <span class="title">info</span>:</span></span><br><span class="line"><span class="function"><span class="title">_java_thread_list</span>=0<span class="title">x00000254ffd7b290</span>, <span class="title">length</span>=13, <span class="title">elements</span>=&#123;</span></span><br><span class="line"><span class="function">0<span class="title">x00000254ffa11000</span>, 0<span class="title">x00000254ffa14800</span>, 0<span class="title">x00000254ffa37000</span>, 0<span class="title">x00000254ffa38000</span>,</span></span><br><span class="line"><span class="function">0<span class="title">x00000254ffa39800</span>, 0<span class="title">x00000254ffae1000</span>, 0<span class="title">x00000254ffa42800</span>, 0<span class="title">x00000254ff9f5800</span>,</span></span><br><span class="line"><span class="function">0<span class="title">x00000254ffced800</span>, 0<span class="title">x00000254ffcf7000</span>, 0<span class="title">x00000254ffd04800</span>, 0<span class="title">x00000254ffd3f800</span>,</span></span><br><span class="line"><span class="function">0<span class="title">x00000254f8011800</span></span></span><br><span class="line"><span class="function">&#125;</span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">&quot;<span class="title">Reference</span> <span class="title">Handler</span>&quot; #2 <span class="title">daemon</span> <span class="title">prio</span>=10 <span class="title">os_prio</span>=2 <span class="title">cpu</span>=0.00<span class="title">ms</span> <span class="title">elapsed</span>=108.48<span class="title">s</span> <span class="title">tid</span>=0<span class="title">x00000254ffa11000</span> <span class="title">nid</span>=0<span class="title">x28e4</span> <span class="title">waiting</span> <span class="title">on</span> <span class="title">condition</span>  [0<span class="title">x00000065b3afe000</span>]</span></span><br><span class="line"><span class="function"><span class="title">java.lang.Thread.State</span>: <span class="title">RUNNABLE</span></span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">java.lang.ref.Reference.waitForReferencePendingList</span>(<span class="title">java.base</span>@13.0.1/<span class="title">Native</span> <span class="title">Method</span>)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">java.lang.ref.Reference.processPendingReferences</span>(<span class="title">java.base</span>@13.0.1/<span class="title">Reference.java</span>:241)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">java.lang.ref.Reference</span>$<span class="title">ReferenceHandler.run</span>(<span class="title">java.base</span>@13.0.1/<span class="title">Reference.java</span>:213)</span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">&quot;<span class="title">Finalizer</span>&quot; #3 <span class="title">daemon</span> <span class="title">prio</span>=8 <span class="title">os_prio</span>=1 <span class="title">cpu</span>=0.00<span class="title">ms</span> <span class="title">elapsed</span>=108.48<span class="title">s</span> <span class="title">tid</span>=0<span class="title">x00000254ffa14800</span> <span class="title">nid</span>=0<span class="title">x4204</span> <span class="title">in</span> <span class="title">Object.wait</span>()  [0<span class="title">x00000065b3bfe000</span>]</span></span><br><span class="line"><span class="function"><span class="title">java.lang.Thread.State</span>: <span class="title">WAITING</span> (<span class="title">on</span> <span class="title">object</span> <span class="title">monitor</span>)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">java.lang.Object.wait</span>(<span class="title">java.base</span>@13.0.1/<span class="title">Native</span> <span class="title">Method</span>)</span></span><br><span class="line"><span class="function">- <span class="title">waiting</span> <span class="title">on</span> &lt;0<span class="title">x0000000089d0aec8</span>&gt; (<span class="title">a</span> <span class="title">java.lang.ref.ReferenceQueue</span>$<span class="title">Lock</span>)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">java.lang.ref.ReferenceQueue.remove</span>(<span class="title">java.base</span>@13.0.1/<span class="title">ReferenceQueue.java</span>:155)</span></span><br><span class="line"><span class="function">- <span class="title">locked</span> &lt;0<span class="title">x0000000089d0aec8</span>&gt; (<span class="title">a</span> <span class="title">java.lang.ref.ReferenceQueue</span>$<span class="title">Lock</span>)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">java.lang.ref.ReferenceQueue.remove</span>(<span class="title">java.base</span>@13.0.1/<span class="title">ReferenceQueue.java</span>:176)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">java.lang.ref.Finalizer</span>$<span class="title">FinalizerThread.run</span>(<span class="title">java.base</span>@13.0.1/<span class="title">Finalizer.java</span>:170)</span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">&quot;<span class="title">Signal</span> <span class="title">Dispatcher</span>&quot; #4 <span class="title">daemon</span> <span class="title">prio</span>=9 <span class="title">os_prio</span>=2 <span class="title">cpu</span>=0.00<span class="title">ms</span> <span class="title">elapsed</span>=108.46<span class="title">s</span> <span class="title">tid</span>=0<span class="title">x00000254ffa37000</span> <span class="title">nid</span>=0<span class="title">x181c</span> <span class="title">runnable</span>  [0<span class="title">x0000000000000000</span>]</span></span><br><span class="line"><span class="function"><span class="title">java.lang.Thread.State</span>: <span class="title">RUNNABLE</span></span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">&quot;<span class="title">Attach</span> <span class="title">Listener</span>&quot; #5 <span class="title">daemon</span> <span class="title">prio</span>=5 <span class="title">os_prio</span>=2 <span class="title">cpu</span>=31.25<span class="title">ms</span> <span class="title">elapsed</span>=108.46<span class="title">s</span> <span class="title">tid</span>=0<span class="title">x00000254ffa38000</span> <span class="title">nid</span>=0<span class="title">x2bb4</span> <span class="title">waiting</span> <span class="title">on</span> <span class="title">condition</span>  [0<span class="title">x0000000000000000</span>]</span></span><br><span class="line"><span class="function"><span class="title">java.lang.Thread.State</span>: <span class="title">RUNNABLE</span></span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">&quot;<span class="title">C2</span> <span class="title">CompilerThread0</span>&quot; #6 <span class="title">daemon</span> <span class="title">prio</span>=9 <span class="title">os_prio</span>=2 <span class="title">cpu</span>=62.50<span class="title">ms</span> <span class="title">elapsed</span>=108.46<span class="title">s</span> <span class="title">tid</span>=0<span class="title">x00000254ffa39800</span> <span class="title">nid</span>=0<span class="title">x25c0</span> <span class="title">waiting</span> <span class="title">on</span> <span class="title">condition</span>  [0<span class="title">x0000000000000000</span>]</span></span><br><span class="line"><span class="function"><span class="title">java.lang.Thread.State</span>: <span class="title">RUNNABLE</span></span></span><br><span class="line"><span class="function"><span class="title">No</span> <span class="title">compile</span> <span class="title">task</span></span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">&quot;<span class="title">C1</span> <span class="title">CompilerThread0</span>&quot; #9 <span class="title">daemon</span> <span class="title">prio</span>=9 <span class="title">os_prio</span>=2 <span class="title">cpu</span>=46.88<span class="title">ms</span> <span class="title">elapsed</span>=108.46<span class="title">s</span> <span class="title">tid</span>=0<span class="title">x00000254ffae1000</span> <span class="title">nid</span>=0<span class="title">x2988</span> <span class="title">waiting</span> <span class="title">on</span> <span class="title">condition</span>  [0<span class="title">x0000000000000000</span>]</span></span><br><span class="line"><span class="function"><span class="title">java.lang.Thread.State</span>: <span class="title">RUNNABLE</span></span></span><br><span class="line"><span class="function"><span class="title">No</span> <span class="title">compile</span> <span class="title">task</span></span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">&quot;<span class="title">Sweeper</span> <span class="title">thread</span>&quot; #10 <span class="title">daemon</span> <span class="title">prio</span>=9 <span class="title">os_prio</span>=2 <span class="title">cpu</span>=0.00<span class="title">ms</span> <span class="title">elapsed</span>=108.46<span class="title">s</span> <span class="title">tid</span>=0<span class="title">x00000254ffa42800</span> <span class="title">nid</span>=0<span class="title">x3ce8</span> <span class="title">runnable</span>  [0<span class="title">x0000000000000000</span>]</span></span><br><span class="line"><span class="function"><span class="title">java.lang.Thread.State</span>: <span class="title">RUNNABLE</span></span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">&quot;<span class="title">Common</span>-<span class="title">Cleaner</span>&quot; #11 <span class="title">daemon</span> <span class="title">prio</span>=8 <span class="title">os_prio</span>=1 <span class="title">cpu</span>=0.00<span class="title">ms</span> <span class="title">elapsed</span>=108.44<span class="title">s</span> <span class="title">tid</span>=0<span class="title">x00000254ff9f5800</span> <span class="title">nid</span>=0<span class="title">x3b78</span> <span class="title">in</span> <span class="title">Object.wait</span>()  [0<span class="title">x00000065b41fe000</span>]</span></span><br><span class="line"><span class="function"><span class="title">java.lang.Thread.State</span>: <span class="title">TIMED_WAITING</span> (<span class="title">on</span> <span class="title">object</span> <span class="title">monitor</span>)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">java.lang.Object.wait</span>(<span class="title">java.base</span>@13.0.1/<span class="title">Native</span> <span class="title">Method</span>)</span></span><br><span class="line"><span class="function">- <span class="title">waiting</span> <span class="title">on</span> &lt;0<span class="title">x0000000089db21c0</span>&gt; (<span class="title">a</span> <span class="title">java.lang.ref.ReferenceQueue</span>$<span class="title">Lock</span>)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">java.lang.ref.ReferenceQueue.remove</span>(<span class="title">java.base</span>@13.0.1/<span class="title">ReferenceQueue.java</span>:155)</span></span><br><span class="line"><span class="function">- <span class="title">locked</span> &lt;0<span class="title">x0000000089db21c0</span>&gt; (<span class="title">a</span> <span class="title">java.lang.ref.ReferenceQueue</span>$<span class="title">Lock</span>)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">jdk.internal.ref.CleanerImpl.run</span>(<span class="title">java.base</span>@13.0.1/<span class="title">CleanerImpl.java</span>:148)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">java.lang.Thread.run</span>(<span class="title">java.base</span>@13.0.1/<span class="title">Thread.java</span>:830)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">jdk.internal.misc.InnocuousThread.run</span>(<span class="title">java.base</span>@13.0.1/<span class="title">InnocuousThread.java</span>:134)</span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">&quot;<span class="title">Monitor</span> <span class="title">Ctrl</span>-<span class="title">Break</span>&quot; #12 <span class="title">daemon</span> <span class="title">prio</span>=5 <span class="title">os_prio</span>=0 <span class="title">cpu</span>=15.63<span class="title">ms</span> <span class="title">elapsed</span>=108.36<span class="title">s</span> <span class="title">tid</span>=0<span class="title">x00000254ffced800</span> <span class="title">nid</span>=0<span class="title">x2a38</span> <span class="title">runnable</span>  [0<span class="title">x00000065b43fe000</span>]</span></span><br><span class="line"><span class="function"><span class="title">java.lang.Thread.State</span>: <span class="title">RUNNABLE</span></span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">sun.nio.ch.SocketDispatcher.read0</span>(<span class="title">java.base</span>@13.0.1/<span class="title">Native</span> <span class="title">Method</span>)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">sun.nio.ch.SocketDispatcher.read</span>(<span class="title">java.base</span>@13.0.1/<span class="title">SocketDispatcher.java</span>:46)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">sun.nio.ch.NioSocketImpl.tryRead</span>(<span class="title">java.base</span>@13.0.1/<span class="title">NioSocketImpl.java</span>:262)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">sun.nio.ch.NioSocketImpl.implRead</span>(<span class="title">java.base</span>@13.0.1/<span class="title">NioSocketImpl.java</span>:313)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">sun.nio.ch.NioSocketImpl.read</span>(<span class="title">java.base</span>@13.0.1/<span class="title">NioSocketImpl.java</span>:351)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">sun.nio.ch.NioSocketImpl</span>$1.<span class="title">read</span>(<span class="title">java.base</span>@13.0.1/<span class="title">NioSocketImpl.java</span>:802)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">java.net.Socket</span>$<span class="title">SocketInputStream.read</span>(<span class="title">java.base</span>@13.0.1/<span class="title">Socket.java</span>:937)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">sun.nio.cs.StreamDecoder.readBytes</span>(<span class="title">java.base</span>@13.0.1/<span class="title">StreamDecoder.java</span>:297)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">sun.nio.cs.StreamDecoder.implRead</span>(<span class="title">java.base</span>@13.0.1/<span class="title">StreamDecoder.java</span>:339)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">sun.nio.cs.StreamDecoder.read</span>(<span class="title">java.base</span>@13.0.1/<span class="title">StreamDecoder.java</span>:188)</span></span><br><span class="line"><span class="function">- <span class="title">locked</span> &lt;0<span class="title">x0000000089b125a0</span>&gt; (<span class="title">a</span> <span class="title">java.io.InputStreamReader</span>)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">java.io.InputStreamReader.read</span>(<span class="title">java.base</span>@13.0.1/<span class="title">InputStreamReader.java</span>:185)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">java.io.BufferedReader.fill</span>(<span class="title">java.base</span>@13.0.1/<span class="title">BufferedReader.java</span>:161)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">java.io.BufferedReader.readLine</span>(<span class="title">java.base</span>@13.0.1/<span class="title">BufferedReader.java</span>:326)</span></span><br><span class="line"><span class="function">- <span class="title">locked</span> &lt;0<span class="title">x0000000089b125a0</span>&gt; (<span class="title">a</span> <span class="title">java.io.InputStreamReader</span>)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">java.io.BufferedReader.readLine</span>(<span class="title">java.base</span>@13.0.1/<span class="title">BufferedReader.java</span>:392)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">com.intellij.rt.execution.application.AppMainV2</span>$1.<span class="title">run</span>(<span class="title">AppMainV2.java</span>:64)</span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">&quot;<span class="title">Service</span> <span class="title">Thread</span>&quot; #13 <span class="title">daemon</span> <span class="title">prio</span>=9 <span class="title">os_prio</span>=0 <span class="title">cpu</span>=0.00<span class="title">ms</span> <span class="title">elapsed</span>=108.36<span class="title">s</span> <span class="title">tid</span>=0<span class="title">x00000254ffcf7000</span> <span class="title">nid</span>=0<span class="title">x42b4</span> <span class="title">runnable</span>  [0<span class="title">x0000000000000000</span>]</span></span><br><span class="line"><span class="function"><span class="title">java.lang.Thread.State</span>: <span class="title">RUNNABLE</span></span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">&quot;<span class="title">t1</span>&quot; #14 <span class="title">prio</span>=5 <span class="title">os_prio</span>=0 <span class="title">cpu</span>=0.00<span class="title">ms</span> <span class="title">elapsed</span>=108.35<span class="title">s</span> <span class="title">tid</span>=0<span class="title">x00000254ffd04800</span> <span class="title">nid</span>=0<span class="title">x3384</span> <span class="title">waiting</span> <span class="title">for</span> <span class="title">monitor</span> <span class="title">entry</span>  [0<span class="title">x00000065b46fe000</span>]</span></span><br><span class="line"><span class="function"><span class="title">java.lang.Thread.State</span>: <span class="title">BLOCKED</span> (<span class="title">on</span> <span class="title">object</span> <span class="title">monitor</span>)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">cn.sxt.game.MyThread1.run</span>(<span class="title">DeadLock.java</span>:36)</span></span><br><span class="line"><span class="function">- <span class="title">waiting</span> <span class="title">to</span> <span class="title">lock</span> &lt;0<span class="title">x0000000089ccb560</span>&gt; (<span class="title">a</span> <span class="title">java.lang.Object</span>)</span></span><br><span class="line"><span class="function">- <span class="title">locked</span> &lt;0<span class="title">x0000000089ccb550</span>&gt; (<span class="title">a</span> <span class="title">java.lang.Object</span>)</span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">&quot;<span class="title">t2</span>&quot; #15 <span class="title">prio</span>=5 <span class="title">os_prio</span>=0 <span class="title">cpu</span>=0.00<span class="title">ms</span> <span class="title">elapsed</span>=108.35<span class="title">s</span> <span class="title">tid</span>=0<span class="title">x00000254ffd3f800</span> <span class="title">nid</span>=0<span class="title">x3c18</span> <span class="title">waiting</span> <span class="title">for</span> <span class="title">monitor</span> <span class="title">entry</span>  [0<span class="title">x00000065b47ff000</span>]</span></span><br><span class="line"><span class="function"><span class="title">java.lang.Thread.State</span>: <span class="title">BLOCKED</span> (<span class="title">on</span> <span class="title">object</span> <span class="title">monitor</span>)</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">cn.sxt.game.MyThread2.run</span>(<span class="title">DeadLock.java</span>:59)</span></span><br><span class="line"><span class="function">- <span class="title">waiting</span> <span class="title">to</span> <span class="title">lock</span> &lt;0<span class="title">x0000000089ccb550</span>&gt; (<span class="title">a</span> <span class="title">java.lang.Object</span>)</span></span><br><span class="line"><span class="function">- <span class="title">locked</span> &lt;0<span class="title">x0000000089ccb560</span>&gt; (<span class="title">a</span> <span class="title">java.lang.Object</span>)</span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">&quot;<span class="title">DestroyJavaVM</span>&quot; #16 <span class="title">prio</span>=5 <span class="title">os_prio</span>=0 <span class="title">cpu</span>=156.25<span class="title">ms</span> <span class="title">elapsed</span>=108.35<span class="title">s</span> <span class="title">tid</span>=0<span class="title">x00000254f8011800</span> <span class="title">nid</span>=0<span class="title">x2780</span> <span class="title">waiting</span> <span class="title">on</span> <span class="title">condition</span>  [0<span class="title">x0000000000000000</span>]</span></span><br><span class="line"><span class="function"><span class="title">java.lang.Thread.State</span>: <span class="title">RUNNABLE</span></span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">&quot;<span class="title">VM</span> <span class="title">Thread</span>&quot; <span class="title">os_prio</span>=2 <span class="title">cpu</span>=0.00<span class="title">ms</span> <span class="title">elapsed</span>=108.48<span class="title">s</span> <span class="title">tid</span>=0<span class="title">x00000254ffa10000</span> <span class="title">nid</span>=0<span class="title">x2544</span> <span class="title">runnable</span></span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">&quot;<span class="title">GC</span> <span class="title">Thread</span>#0&quot; <span class="title">os_prio</span>=2 <span class="title">cpu</span>=0.00<span class="title">ms</span> <span class="title">elapsed</span>=108.49<span class="title">s</span> <span class="title">tid</span>=0<span class="title">x00000254f8055800</span> <span class="title">nid</span>=0<span class="title">x117c</span> <span class="title">runnable</span></span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">&quot;<span class="title">G1</span> <span class="title">Main</span> <span class="title">Marker</span>&quot; <span class="title">os_prio</span>=2 <span class="title">cpu</span>=0.00<span class="title">ms</span> <span class="title">elapsed</span>=108.49<span class="title">s</span> <span class="title">tid</span>=0<span class="title">x00000254f8066800</span> <span class="title">nid</span>=0<span class="title">x3098</span> <span class="title">runnable</span></span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">&quot;<span class="title">G1</span> <span class="title">Conc</span>#0&quot; <span class="title">os_prio</span>=2 <span class="title">cpu</span>=0.00<span class="title">ms</span> <span class="title">elapsed</span>=108.49<span class="title">s</span> <span class="title">tid</span>=0<span class="title">x00000254f8068800</span> <span class="title">nid</span>=0<span class="title">x24e4</span> <span class="title">runnable</span></span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">&quot;<span class="title">G1</span> <span class="title">Refine</span>#0&quot; <span class="title">os_prio</span>=2 <span class="title">cpu</span>=0.00<span class="title">ms</span> <span class="title">elapsed</span>=108.49<span class="title">s</span> <span class="title">tid</span>=0<span class="title">x00000254ff88a800</span> <span class="title">nid</span>=0<span class="title">x127c</span> <span class="title">runnable</span></span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">&quot;<span class="title">G1</span> <span class="title">Young</span> <span class="title">RemSet</span> <span class="title">Sampling</span>&quot; <span class="title">os_prio</span>=2 <span class="title">cpu</span>=0.00<span class="title">ms</span> <span class="title">elapsed</span>=108.49<span class="title">s</span> <span class="title">tid</span>=0<span class="title">x00000254ff88c000</span> <span class="title">nid</span>=0<span class="title">x1900</span> <span class="title">runnable</span></span></span><br><span class="line"><span class="function">&quot;<span class="title">VM</span> <span class="title">Periodic</span> <span class="title">Task</span> <span class="title">Thread</span>&quot; <span class="title">os_prio</span>=2 <span class="title">cpu</span>=0.00<span class="title">ms</span> <span class="title">elapsed</span>=108.36<span class="title">s</span> <span class="title">tid</span>=0<span class="title">x00000254ffcfa800</span> <span class="title">nid</span>=0<span class="title">x230c</span> <span class="title">waiting</span> <span class="title">on</span> <span class="title">condition</span></span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function"><span class="title">JNI</span> <span class="title">global</span> <span class="title">refs</span>: 16, <span class="title">weak</span> <span class="title">refs</span>: 0</span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function">// 找到一个死锁</span></span><br><span class="line"><span class="function"><span class="title">Found</span> <span class="title">one</span> <span class="title">Java</span>-<span class="title">level</span> <span class="title">deadlock</span>:</span></span><br><span class="line"><span class="function">=============================</span></span><br><span class="line"><span class="function">&quot;<span class="title">t1</span>&quot;:</span></span><br><span class="line"><span class="function"><span class="title">waiting</span> <span class="title">to</span> <span class="title">lock</span> <span class="title">monitor</span> 0<span class="title">x00000254ffa1df00</span> (<span class="title">object</span> 0<span class="title">x0000000089ccb560</span>, <span class="title">a</span> <span class="title">java.lang.Object</span>),</span></span><br><span class="line"><span class="function"><span class="title">which</span> <span class="title">is</span> <span class="title">held</span> <span class="title">by</span> &quot;<span class="title">t2</span>&quot;</span></span><br><span class="line"><span class="function">&quot;<span class="title">t2</span>&quot;:</span></span><br><span class="line"><span class="function"><span class="title">waiting</span> <span class="title">to</span> <span class="title">lock</span> <span class="title">monitor</span> 0<span class="title">x00000254ffa1dd00</span> (<span class="title">object</span> 0<span class="title">x0000000089ccb550</span>, <span class="title">a</span> <span class="title">java.lang.Object</span>),</span></span><br><span class="line"><span class="function"><span class="title">which</span> <span class="title">is</span> <span class="title">held</span> <span class="title">by</span> &quot;<span class="title">t1</span>&quot;</span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function"><span class="title">Java</span> <span class="title">stack</span> <span class="title">information</span> <span class="title">for</span> <span class="title">the</span> <span class="title">threads</span> <span class="title">listed</span> <span class="title">above</span>:</span></span><br><span class="line"><span class="function">===================================================</span></span><br><span class="line"><span class="function">&quot;<span class="title">t1</span>&quot;:</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">cn.sxt.game.MyThread1.run</span>(<span class="title">DeadLock.java</span>:36)</span></span><br><span class="line"><span class="function">// 等待 0<span class="title">x0000000089ccb560</span> 锁</span></span><br><span class="line"><span class="function">- <span class="title">waiting</span> <span class="title">to</span> <span class="title">lock</span> &lt;0<span class="title">x0000000089ccb560</span>&gt; (<span class="title">a</span> <span class="title">java.lang.Object</span>)</span></span><br><span class="line"><span class="function">//持有0<span class="title">x0000000089ccb550</span> 锁</span></span><br><span class="line"><span class="function">- <span class="title">locked</span> &lt;0<span class="title">x0000000089ccb550</span>&gt; (<span class="title">a</span> <span class="title">java.lang.Object</span>)</span></span><br><span class="line"><span class="function">&quot;<span class="title">t2</span>&quot;:</span></span><br><span class="line"><span class="function"><span class="title">at</span> <span class="title">cn.sxt.game.MyThread2.run</span>(<span class="title">DeadLock.java</span>:59)</span></span><br><span class="line"><span class="function">//等待0<span class="title">x0000000089ccb550</span> 锁</span></span><br><span class="line"><span class="function">- <span class="title">waiting</span> <span class="title">to</span> <span class="title">lock</span> &lt;0<span class="title">x0000000089ccb550</span>&gt; (<span class="title">a</span> <span class="title">java.lang.Object</span>)</span></span><br><span class="line"><span class="function">// 持有 0<span class="title">x0000000089ccb560</span> 锁</span></span><br><span class="line"><span class="function">- <span class="title">locked</span> &lt;0<span class="title">x0000000089ccb560</span>&gt; (<span class="title">a</span> <span class="title">java.lang.Object</span>)</span></span><br><span class="line"><span class="function">//发现一个死锁</span></span><br><span class="line"><span class="function"><span class="title">Found</span> 1 <span class="title">deadlock</span>.</span></span><br></pre></td></tr></table></figure>
-
-<figure class="highlight bat"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">t1  waiting to lock &lt;<span class="number">0</span>x0000000089ccb560&gt;locked &lt;<span class="number">0</span>x0000000089ccb550&gt;</span><br><span class="line">t2  waiting to lock &lt;<span class="number">0</span>x0000000089ccb550&gt;locked &lt;<span class="number">0</span>x0000000089ccb560&gt;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
-
-
-<p>我们首先使用 jps 命令找到 java 进程号，然后使用 jstack 进程号 打印进程栈的信息，其中，在最后的部分，jstack 告诉我们，他找到了一个死锁，其中又详细的信息：t1 线程（这里我们已经给线程起名字为t1，通常情况下，给线程起一个合适的名字将更有利于排查）持有Object类型的编号为 0x0000000089ccb550 的锁，等待编号为 0x0000000089ccb560 的锁 ， 但这个锁由 t2 持有，于此同时，t1 和 t2 相反。t2 线程持有 0x0000000089ccb560 的锁，等待 0x0000000089ccb550 的锁。我们的注释里也写上了。</p>
-<p>那么发生了死锁，该怎么办呢？最简单的办法就是重启，重启之后，对 jstack 中打印的堆栈信息中的代码进行修改。重新发布。当然还有一些高级策略，比如让进程回滚到死锁前的状态，然后让他们顺序进入同步块。</p>
-<h1 id="死锁有哪些形成的原因"><a href="#死锁有哪些形成的原因" class="headerlink" title="死锁有哪些形成的原因"></a>死锁有哪些形成的原因</h1><p>一般来说，要出现死锁问题需要满足以下条件：</p>
-<p>互斥条件：一个资源每次只能被一个线程使用。</p>
-<p>请求与保持条件：一个进程因请求资源而阻塞时，对已获得的资源保持不放。</p>
-<p>不剥夺条件：进程已获得的资源，在未使用完之前，不能强行剥夺。</p>
-<p>循环等待条件：若干进程之间形成一种头尾相接的循环等待资源关系。</p>
-<p>死锁是由四个必要条件导致的，所以一般来说，只要破坏这四个必要条件中的一个条件，死锁情况就应该不会发生。<br>我们在编程的时候尽量避免发生死锁，如果出现死锁可以使用 jstack 命令查看线程是否有死锁。</p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
 
   
   <nav class="pagination">
@@ -2373,7 +2456,7 @@
       <div class="site-state-item site-state-posts">
           <a href="/archives/">
         
-          <span class="site-state-item-count">22</span>
+          <span class="site-state-item-count">25</span>
           <span class="site-state-item-name">posts</span>
         </a>
       </div>
@@ -2386,7 +2469,7 @@
       <div class="site-state-item site-state-tags">
             <a href="/tags/">
           
-        <span class="site-state-item-count">32</span>
+        <span class="site-state-item-count">35</span>
         <span class="site-state-item-name">tags</span></a>
       </div>
   </nav>
@@ -2430,12 +2513,12 @@
     <span class="post-meta-item-icon">
       <i class="fa fa-chart-area"></i>
     </span>
-    <span title="Symbols count total">152k</span>
+    <span title="Symbols count total">173k</span>
     <span class="post-meta-divider">|</span>
     <span class="post-meta-item-icon">
       <i class="fa fa-coffee"></i>
     </span>
-    <span title="Reading time total">4:36</span>
+    <span title="Reading time total">5:15</span>
 </div>
   <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://muse.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
   </div>
